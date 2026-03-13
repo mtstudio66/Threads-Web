@@ -3,8 +3,11 @@
 
 import os
 import time
+import json
 import logging
 import threading
+import hashlib
+import secrets
 import requests
 from datetime import datetime
 import mysql.connector
@@ -30,6 +33,21 @@ def get_db_connection():
     return mysql.connector.connect(
         host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, database=DB_DATABASE
     )
+
+# --- 密碼雜湊工具函數 ---
+def hash_password(password):
+    """使用 SHA-256 加鹽雜湊密碼"""
+    salt = secrets.token_hex(16)
+    hashed = hashlib.sha256((salt + password).encode()).hexdigest()
+    return f"{salt}:{hashed}"
+
+def verify_password(password, stored_hash):
+    """驗證密碼是否正確"""
+    if ':' not in stored_hash:
+        # 舊版無雜湊密碼，直接比對 (向下相容)
+        return password == stored_hash
+    salt, hashed = stored_hash.split(':')
+    return hashlib.sha256((salt + password).encode()).hexdigest() == hashed
 
 def init_db():
     """建立 SaaS 系統完整資料庫結構，並強制修復缺失資料"""
@@ -152,8 +170,11 @@ def init_db():
         # 1. 確保有預設管理員與計費設定
         cursor.execute("SELECT COUNT(*) FROM users")
         if cursor.fetchone()[0] == 0:
-            # 預設密碼: admin123 (生產環境請更改)
-            cursor.execute("INSERT INTO users (username, password, role) VALUES ('Admin', 'admin123', 'admin'), ('TestUser', 'test123', 'user')")
+            # 預設密碼: admin123 (生產環境請更改) - 使用雜湊儲存
+            admin_hash = hash_password('admin123')
+            user_hash = hash_password('test123')
+            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'admin'), (%s, %s, 'user')", 
+                          ('Admin', admin_hash, 'TestUser', user_hash))
         
         cursor.execute("SELECT COUNT(*) FROM billing_settings")
         if cursor.fetchone()[0] == 0:
@@ -328,11 +349,16 @@ def admin_login():
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT id, username, role FROM users WHERE username = %s AND password = %s AND role = 'admin'", (username, password))
+        cursor.execute("SELECT id, username, password, role FROM users WHERE username = %s AND role = 'admin'", (username,))
         user = cursor.fetchone()
         
-        if user:
-            return jsonify({"success": True, "message": "登入成功", "user": user}), 200
+        if user and verify_password(password, user['password']):
+            # 不回傳密碼雜湊值
+            return jsonify({
+                "success": True, 
+                "message": "登入成功", 
+                "user": {"id": user['id'], "username": user['username'], "role": user['role']}
+            }), 200
         return jsonify({"success": False, "message": "帳號或密碼錯誤"}), 401
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -389,9 +415,11 @@ def create_user():
     try:
         db = get_db_connection()
         cursor = db.cursor()
+        # 密碼使用雜湊儲存
+        hashed_password = hash_password(password)
         cursor.execute(
             "INSERT INTO users (username, password, email, role, planId) VALUES (%s, %s, %s, %s, %s)",
-            (username, password, email, role, planId)
+            (username, hashed_password, email, role, planId)
         )
         db.commit()
         return jsonify({"success": True, "message": "使用者新增成功", "userId": cursor.lastrowid}), 200
@@ -416,7 +444,8 @@ def update_user(user_id):
             values.append(data['username'])
         if 'password' in data and data['password']:
             updates.append("password = %s")
-            values.append(data['password'])
+            # 密碼使用雜湊儲存
+            values.append(hash_password(data['password']))
         if 'email' in data:
             updates.append("email = %s")
             values.append(data['email'])
@@ -545,8 +574,7 @@ def create_plan():
         db = get_db_connection()
         cursor = db.cursor()
         
-        import json as json_lib
-        features = json_lib.dumps(data.get('features', [])) if isinstance(data.get('features'), list) else data.get('features', '[]')
+        features = json.dumps(data.get('features', [])) if isinstance(data.get('features'), list) else data.get('features', '[]')
         
         cursor.execute("""
             INSERT INTO subscription_plans (planName, description, priceUsdt, monthlyPostLimit, aiGenerationLimit, features, isActive)
@@ -576,8 +604,7 @@ def update_plan(plan_id):
         db = get_db_connection()
         cursor = db.cursor()
         
-        import json as json_lib
-        features = json_lib.dumps(data.get('features', [])) if isinstance(data.get('features'), list) else data.get('features')
+        features = json.dumps(data.get('features', [])) if isinstance(data.get('features'), list) else data.get('features')
         
         cursor.execute("""
             UPDATE subscription_plans 

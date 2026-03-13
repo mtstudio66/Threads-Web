@@ -596,6 +596,17 @@
         const titles = {'compose': '發文編輯器', 'accounts': '帳號管理', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'admin': '計費與系統管理'};
         const adminSections = ['billing', 'users', 'plans', 'usdt', 'payments'];
         
+        // XSS 防護: HTML 實體編碼
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+        
         function switchTab(tabId) {
             sections.forEach(id => {
                 document.getElementById(`section-${id}`).classList.add('hidden');
@@ -814,18 +825,23 @@
                         ? '<span class="text-[#10b981] bg-[#10b981]/10 px-2 py-1 rounded text-[10px]">啟用</span>'
                         : '<span class="text-destructive bg-destructive/10 px-2 py-1 rounded text-[10px]">停用</span>';
                     
+                    // 使用 escapeHtml 防止 XSS
+                    const safeUsername = escapeHtml(u.username);
+                    const safeEmail = escapeHtml(u.email || '');
+                    const safePlanName = escapeHtml(u.planName || '未訂閱');
+                    
                     return `
                     <tr class="hover:bg-muted/10">
                         <td class="px-5 py-3 text-muted-foreground">#${u.id}</td>
-                        <td class="px-5 py-3 font-medium text-foreground">${u.username}</td>
-                        <td class="px-5 py-3 text-muted-foreground">${u.email || '-'}</td>
+                        <td class="px-5 py-3 font-medium text-foreground">${safeUsername}</td>
+                        <td class="px-5 py-3 text-muted-foreground">${safeEmail || '-'}</td>
                         <td class="px-5 py-3">${roleBadge}</td>
-                        <td class="px-5 py-3 text-muted-foreground">${u.planName || '未訂閱'}</td>
+                        <td class="px-5 py-3 text-muted-foreground">${safePlanName}</td>
                         <td class="px-5 py-3 font-mono text-primary">${u.currentUsage} 篇</td>
                         <td class="px-5 py-3">${statusBadge}</td>
                         <td class="px-5 py-3">
                             <div class="flex gap-2">
-                                <button onclick="showEditUserModal(${u.id}, '${u.username}', '${u.email||''}', '${u.role}', ${u.planId||'null'}, ${u.isActive})" class="text-muted-foreground hover:text-primary px-2 py-1 border border-border rounded text-xs"><i class="fa-solid fa-edit"></i></button>
+                                <button onclick="showEditUserModal(${u.id}, '${safeUsername}', '${safeEmail}', '${u.role}', ${u.planId||'null'}, ${u.isActive})" class="text-muted-foreground hover:text-primary px-2 py-1 border border-border rounded text-xs"><i class="fa-solid fa-edit"></i></button>
                                 <button onclick="deleteUser(${u.id})" class="text-destructive hover:opacity-80 px-2 py-1 border border-destructive/20 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </td>
@@ -882,16 +898,14 @@
             }
         }
         
-        function showEditUserModal(id, username, email, role, planId, isActive) {
-            loadPlansForSelect('editUserPlan');
+        async function showEditUserModal(id, username, email, role, planId, isActive) {
+            await loadPlansForSelect('editUserPlan');
             document.getElementById('editUserId').value = id;
             document.getElementById('editUserUsername').value = username;
             document.getElementById('editUserEmail').value = email;
             document.getElementById('editUserRole').value = role;
             document.getElementById('editUserActive').checked = isActive;
-            setTimeout(() => {
-                document.getElementById('editUserPlan').value = planId || '';
-            }, 100);
+            document.getElementById('editUserPlan').value = planId || '';
             document.getElementById('editUserModal').classList.remove('hidden');
         }
         
@@ -961,28 +975,32 @@
                 
                 const plansHtml = allPlans.map(p => {
                     const features = typeof p.features === 'string' ? JSON.parse(p.features || '[]') : (p.features || []);
-                    const featuresHtml = features.map(f => `<li class="flex items-center gap-2"><i class="fa-solid fa-check text-primary text-xs"></i>${f}</li>`).join('');
+                    const featuresHtml = features.map(f => `<li class="flex items-center gap-2"><i class="fa-solid fa-check text-primary text-xs"></i>${escapeHtml(f)}</li>`).join('');
                     const limitText = p.monthlyPostLimit === -1 ? '無限' : p.monthlyPostLimit;
                     const aiText = p.aiGenerationLimit === -1 ? '無限' : p.aiGenerationLimit;
                     const statusBadge = p.isActive 
                         ? '<span class="text-[#10b981] text-xs">啟用中</span>'
                         : '<span class="text-destructive text-xs">已停用</span>';
                     
+                    // 使用 escapeHtml 防止 XSS
+                    const safePlanName = escapeHtml(p.planName);
+                    const safeDescription = escapeHtml(p.description || '');
+                    
                     return `
-                    <div class="rounded-lg bg-card border border-border p-5 shadow-elegant flex flex-col">
+                    <div class="rounded-lg bg-card border border-border p-5 shadow-elegant flex flex-col" data-plan-id="${p.id}">
                         <div class="flex justify-between items-start mb-3">
-                            <h4 class="font-medium text-foreground">${p.planName}</h4>
+                            <h4 class="font-medium text-foreground">${safePlanName}</h4>
                             ${statusBadge}
                         </div>
                         <div class="text-2xl font-bold text-primary mb-2">$${parseFloat(p.priceUsdt).toFixed(2)} <span class="text-sm font-normal text-muted-foreground">USDT</span></div>
-                        <p class="text-xs text-muted-foreground mb-4">${p.description || ''}</p>
+                        <p class="text-xs text-muted-foreground mb-4">${safeDescription}</p>
                         <div class="text-xs text-muted-foreground mb-2">
                             <div>發文上限: <span class="text-foreground">${limitText}</span> 篇/月</div>
                             <div>AI生成: <span class="text-foreground">${aiText}</span> 次/月</div>
                         </div>
                         <ul class="text-xs text-muted-foreground space-y-1 mb-4 flex-1">${featuresHtml}</ul>
                         <div class="flex gap-2 mt-auto">
-                            <button onclick='showEditPlanModal(${JSON.stringify(p).replace(/'/g, "&#39;")})' class="flex-1 py-2 text-xs bg-secondary text-foreground rounded hover:opacity-80"><i class="fa-solid fa-edit mr-1"></i>編輯</button>
+                            <button onclick="editPlanById(${p.id})" class="flex-1 py-2 text-xs bg-secondary text-foreground rounded hover:opacity-80"><i class="fa-solid fa-edit mr-1"></i>編輯</button>
                             <button onclick="deletePlan(${p.id})" class="py-2 px-3 text-xs text-destructive border border-destructive/20 rounded hover:bg-destructive/10"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </div>
@@ -992,6 +1010,12 @@
             } catch(e) {
                 console.error('載入方案失敗:', e);
             }
+        }
+        
+        // 透過ID查找方案並編輯 (避免直接傳遞JSON)
+        function editPlanById(planId) {
+            const plan = allPlans.find(p => p.id === planId);
+            if(plan) showEditPlanModal(plan);
         }
         
         async function loadPlansForSelect(selectId) {

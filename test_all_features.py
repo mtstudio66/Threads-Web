@@ -80,10 +80,14 @@ class TestIndexAndStaticFiles(unittest.TestCase):
     def test_index_returns_html(self):
         """測試首頁回傳 HTML"""
         with patch('bot.send_file') as mock_send:
-            mock_send.return_value = 'index.html content'
+            from flask import Response
+            mock_send.return_value = Response('index.html content', mimetype='text/html')
             response = self.app.get('/')
             mock_send.assert_called_once_with('index.html')
-        print("✅ 首頁路由正確")
+            assert response.headers.get('Cache-Control') == 'no-cache, no-store, must-revalidate'
+            assert response.headers.get('Pragma') == 'no-cache'
+            assert response.headers.get('Expires') == '0'
+        print("✅ 首頁路由正確，快取控制頭已設置")
 
 
 class MockDBCursor:

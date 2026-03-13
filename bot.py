@@ -37,6 +37,76 @@ def get_db_connection():
         database=DB_DATABASE
     )
 
+def init_db():
+    """【魔法新增】自動建立資料庫中的資料表"""
+    db = None
+    cursor = None
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        
+        # 1. 建立帳號表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS threads_accounts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                accountName VARCHAR(128) NOT NULL,
+                accessToken TEXT NOT NULL,
+                isActive BOOLEAN DEFAULT TRUE,
+                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # 2. 建立排程表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS scheduled_posts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                userId INT DEFAULT 1,
+                accountId INT NOT NULL,
+                content TEXT NOT NULL,
+                imageUrls JSON,
+                scheduledAt TIMESTAMP NOT NULL,
+                status VARCHAR(20) DEFAULT 'pending',
+                postId INT,
+                errorMessage TEXT,
+                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # 3. 建立發文歷史表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS posts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                userId INT DEFAULT 1,
+                accountId INT NOT NULL,
+                content TEXT NOT NULL,
+                threadsPostId VARCHAR(128),
+                status VARCHAR(20),
+                publishedAt TIMESTAMP,
+                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # 4. 自動塞入一個測試用的帳號，以免發文時找不到帳號
+        cursor.execute("SELECT COUNT(*) FROM threads_accounts")
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("""
+                INSERT INTO threads_accounts (accountName, accessToken) 
+                VALUES ('@預設帳號', '請之後在這裡替換成真實的Threads_Token')
+            """)
+            
+        db.commit()
+        logger.info("✅ 資料庫資料表檢查與自動建表完成！")
+        
+    except Exception as e:
+        logger.error(f"❌ 初始化資料庫失敗: {e}")
+    finally:
+        if cursor is not None:
+            try: cursor.close()
+            except: pass
+        if db is not None and db.is_connected():
+            try: db.close()
+            except: pass
+
 # ==========================================
 # Flask 網頁與 API 路由設定 (處理前端 UI 請求)
 # ==========================================
@@ -187,6 +257,9 @@ if __name__ == "__main__":
     logger.info("系統啟動中...")
     logger.info(f"資料庫連線: {DB_HOST}:{DB_PORT}")
     logger.info("==========================================")
+    
+    # 【新增這行】啟動前先呼叫魔法函數自動建立資料表
+    init_db()
     
     # 1. 啟動背景發文機器人 (使用多執行緒，這樣才不會卡住網頁伺服器)
     worker_thread = threading.Thread(target=background_worker, daemon=True)

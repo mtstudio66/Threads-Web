@@ -2,101 +2,156 @@
 <html lang="zh-TW" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AutoThreader - 全能發文管理系統</title>
+    <!-- 引入字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- 套用你指定的設計系統 (Design System) -->
     <script>
         tailwind.config = {
             darkMode: 'class',
-            theme: { extend: { colors: { slate: { 850: '#151e2e', 900: '#0f172a', 950: '#020617' } } } }
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#121212',      // 深灰色背景
+                        foreground: '#f8fafc',      // 淺色文字
+                        primary: '#6366f1',         // 藍紫色主色調 (indigo-500)
+                        'primary-hover': '#4f46e5', // 藍紫色主色調 (Hover)
+                        secondary: '#334155',       // 次要色
+                        destructive: '#ef4444',     // 危險紅色
+                        border: '#1e293b',          // 邊框色
+                        input: '#020617',           // 輸入框背景
+                        card: '#1e293b',            // 卡片背景
+                        muted: '#94a3b8'            // 淡化文字 (muted-foreground)
+                    },
+                    borderRadius: {
+                        DEFAULT: '8px',             // 圓角系統 8px
+                        'md': '8px',
+                        'lg': '12px',
+                    },
+                    boxShadow: {
+                        'elegant': '0 10px 40px -10px rgba(0,0,0,0.5)', // 優雅淡陰影
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'], // 字型系統
+                    }
+                }
+            }
         }
     </script>
-    <style>body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }</style>
+    <style>
+        /* 隱藏網頁捲軸，保持 App 質感 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-50 h-screen flex overflow-hidden">
+<body class="bg-background text-foreground h-screen flex overflow-hidden font-sans antialiased selection:bg-primary selection:text-white">
 
-    <!-- 左側導航菜單 -->
-    <aside class="w-64 border-r border-slate-800 bg-slate-950 hidden md:flex flex-col z-10">
-        <div class="flex h-16 items-center px-6 border-b border-slate-800">
-            <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
-                <i class="fa-solid fa-bolt text-indigo-500"></i> AutoThreader
+    <!-- [桌面版] 左側導航菜單 -->
+    <aside class="w-64 border-r border-border bg-card hidden md:flex flex-col z-20 shadow-elegant">
+        <div class="flex h-16 items-center px-6 border-b border-border">
+            <h1 class="text-xl font-bold text-primary flex items-center gap-2 tracking-wide">
+                <i class="fa-solid fa-bolt"></i> AutoThreader
             </h1>
         </div>
-        <nav class="flex-1 space-y-2 px-3 py-4">
-            <button onclick="switchTab('compose')" id="tab-compose" class="tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium bg-indigo-600/10 text-indigo-400">
+        <nav class="flex-1 space-y-2 px-4 py-6">
+            <button onclick="switchTab('compose')" id="tab-desktop-compose" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded text-primary bg-primary/10 transition-colors">
                 <i class="fa-solid fa-pen-nib w-5"></i> 發文編輯器
             </button>
-            <button onclick="switchTab('templates')" id="tab-templates" class="tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors">
-                <i class="fa-solid fa-fire w-5 text-orange-400"></i> 熱門文案庫
+            <button onclick="switchTab('templates')" id="tab-desktop-templates" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted hover:bg-secondary/50 hover:text-foreground rounded transition-colors">
+                <i class="fa-solid fa-fire w-5"></i> 熱門文案庫
             </button>
-            <button onclick="switchTab('schedule')" id="tab-schedule" class="tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors">
-                <i class="fa-solid fa-clock w-5 text-blue-400"></i> 排程與歷史
+            <button onclick="switchTab('schedule')" id="tab-desktop-schedule" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted hover:bg-secondary/50 hover:text-foreground rounded transition-colors">
+                <i class="fa-solid fa-clock w-5"></i> 排程與歷史
             </button>
-            <button onclick="switchTab('billing')" id="tab-billing" class="tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors">
-                <i class="fa-solid fa-money-check-dollar w-5 text-green-400"></i> 計費與管理
+            <button onclick="switchTab('billing')" id="tab-desktop-billing" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted hover:bg-secondary/50 hover:text-foreground rounded transition-colors">
+                <i class="fa-solid fa-money-check-dollar w-5"></i> 計費與管理
             </button>
         </nav>
     </aside>
 
+    <!-- [手機版] 底部導航列 (Bottom Navigation) -->
+    <nav class="md:hidden fixed bottom-0 left-0 w-full h-16 bg-card border-t border-border z-50 flex justify-around items-center px-2 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
+        <button onclick="switchTab('compose')" id="tab-mobile-compose" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary">
+            <i class="fa-solid fa-pen-nib text-lg mb-1"></i><span class="text-[10px] font-medium">編輯</span>
+        </button>
+        <button onclick="switchTab('templates')" id="tab-mobile-templates" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted hover:text-foreground transition-colors">
+            <i class="fa-solid fa-fire text-lg mb-1"></i><span class="text-[10px] font-medium">文案庫</span>
+        </button>
+        <button onclick="switchTab('schedule')" id="tab-mobile-schedule" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted hover:text-foreground transition-colors">
+            <i class="fa-solid fa-clock text-lg mb-1"></i><span class="text-[10px] font-medium">排程</span>
+        </button>
+        <button onclick="switchTab('billing')" id="tab-mobile-billing" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted hover:text-foreground transition-colors">
+            <i class="fa-solid fa-user-gear text-lg mb-1"></i><span class="text-[10px] font-medium">管理</span>
+        </button>
+    </nav>
+
     <!-- 右側主內容區 -->
-    <main class="flex-1 flex flex-col overflow-hidden bg-slate-900 relative">
-        <header class="flex h-16 items-center justify-between border-b border-slate-800 px-6 bg-slate-950/80 backdrop-blur sticky top-0 z-10">
-            <h2 id="pageTitle" class="text-lg font-semibold tracking-wide">發文編輯器</h2>
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        <header class="flex h-14 md:h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 sticky top-0 z-10">
+            <h2 id="pageTitle" class="text-base md:text-lg font-semibold tracking-wide">發文編輯器</h2>
             <div class="flex items-center gap-3">
-                <span class="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-full"><i class="fa-solid fa-circle-check text-xs"></i> 系統運作中</span>
-                <div class="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold shadow-lg">Me</div>
+                <span class="hidden md:inline-block text-xs text-[#10b981] bg-[#10b981]/10 px-2 py-1 rounded border border-[#10b981]/20"><i class="fa-solid fa-circle-check"></i> 系統連線</span>
+                <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-sm font-bold shadow-elegant">M</div>
             </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-6 md:p-8">
+        <!-- 加入 pb-20 確保手機版滑到底部時不會被導航列遮擋 -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
             <!-- Alert 提示框 -->
-            <div id="globalAlert" class="hidden mb-6 rounded-lg p-4 text-sm font-medium shadow-lg transition-all duration-300"></div>
+            <div id="globalAlert" class="hidden mb-6 rounded p-4 text-sm font-medium shadow-elegant transition-all duration-300"></div>
 
             <!-- 1. 發文編輯器 -->
-            <section id="section-compose" class="max-w-4xl mx-auto space-y-6">
+            <section id="section-compose" class="max-w-4xl mx-auto space-y-6 animate-fade-in">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-950 p-6 shadow-xl relative">
+                    <div class="lg:col-span-2 rounded bg-card border border-border p-4 md:p-6 shadow-elegant">
                         <div class="flex justify-between items-center mb-4">
-                            <label class="block text-sm font-medium text-slate-300">撰寫貼文</label>
-                            <button onclick="generateAI()" id="aiBtn" class="text-xs bg-purple-500/20 text-purple-300 px-3 py-1.5 rounded-md hover:bg-purple-500/40 transition-colors flex items-center gap-1">
+                            <label class="block text-sm font-medium text-foreground">撰寫貼文</label>
+                            <button onclick="generateAI()" id="aiBtn" class="text-xs bg-primary/20 text-primary px-3 py-1.5 rounded hover:bg-primary/30 transition-colors flex items-center gap-1 border border-primary/20">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> AI 幫我寫
                             </button>
                         </div>
-                        <textarea id="composeContent" rows="6" required class="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-white resize-none transition-all placeholder-slate-600 mb-4" placeholder="今天想分享什麼？支援圖片上傳..."></textarea>
+                        <textarea id="composeContent" rows="6" required class="w-full rounded bg-input border border-border px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground resize-none transition-all placeholder-muted mb-4" placeholder="今天想分享什麼？"></textarea>
                         
-                        <div class="flex items-center gap-4 py-3 border-y border-slate-800 mb-4">
-                            <button class="text-sm text-slate-400 hover:text-indigo-400 flex items-center gap-2"><i class="fa-solid fa-image"></i> 上傳圖片 (S3)</button>
-                            <button class="text-sm text-slate-400 hover:text-orange-400 flex items-center gap-2" onclick="switchTab('templates')"><i class="fa-solid fa-fire"></i> 套用熱門文案</button>
+                        <!-- 手機版工具列改為左右分佈，更易點擊 -->
+                        <div class="flex items-center justify-between md:justify-start md:gap-6 py-3 border-y border-border mb-4">
+                            <button class="text-sm text-muted hover:text-primary transition-colors flex items-center gap-2"><i class="fa-solid fa-image"></i> S3 圖片</button>
+                            <button class="text-sm text-muted hover:text-[#f59e0b] transition-colors flex items-center gap-2" onclick="switchTab('templates')"><i class="fa-solid fa-fire"></i> 熱門範本</button>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4 mb-6">
+                        <!-- 手機版時間選擇改為單行排列 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                             <div>
-                                <label class="block text-xs text-slate-500 mb-1">排程日期 (若留空則立即發文)</label>
-                                <input type="date" id="scheduleDate" class="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none text-white css-color-scheme-dark">
+                                <label class="block text-xs text-muted mb-1">排程日期 (留空為立即發)</label>
+                                <input type="date" id="scheduleDate" class="w-full rounded bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground css-color-scheme-dark">
                             </div>
                             <div>
-                                <label class="block text-xs text-slate-500 mb-1">排程時間</label>
-                                <input type="time" id="scheduleTime" class="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none text-white css-color-scheme-dark">
+                                <label class="block text-xs text-muted mb-1">排程時間</label>
+                                <input type="time" id="scheduleTime" class="w-full rounded bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground css-color-scheme-dark">
                             </div>
                         </div>
 
-                        <div class="flex justify-end gap-3">
-                            <button onclick="submitPost(true)" class="px-5 py-2 text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+                        <!-- 手機版按鈕佔滿全寬 -->
+                        <div class="flex flex-col md:flex-row justify-end gap-3">
+                            <button onclick="submitPost(true)" class="w-full md:w-auto px-5 py-2.5 text-sm font-medium text-foreground bg-secondary hover:bg-secondary/80 rounded transition-colors">
                                 <i class="fa-solid fa-paper-plane mr-1"></i> 立即發文
                             </button>
-                            <button onclick="submitPost(false)" id="submitBtn" class="px-6 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-lg shadow-indigo-500/25">
+                            <button onclick="submitPost(false)" id="submitBtn" class="w-full md:w-auto px-6 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded transition-colors shadow-elegant">
                                 <i class="fa-solid fa-clock mr-1"></i> 儲存排程
                             </button>
                         </div>
                     </div>
 
                     <!-- 帳號選擇側欄 -->
-                    <div class="rounded-xl border border-slate-800 bg-slate-950 p-6 shadow-xl h-fit">
-                        <label class="block text-sm font-medium text-slate-300 mb-4"><i class="fa-solid fa-users mr-2"></i>發布目標帳號</label>
+                    <div class="rounded bg-card border border-border p-4 md:p-6 shadow-elegant h-fit">
+                        <label class="block text-sm font-medium text-foreground mb-4"><i class="fa-solid fa-users mr-2 text-primary"></i>發布目標</label>
                         <div id="accountList" class="space-y-3">
-                            <!-- 帳號列表動態生成 -->
-                            <div class="animate-pulse flex space-x-4"><div class="flex-1 space-y-4 py-1"><div class="h-4 bg-slate-800 rounded w-3/4"></div></div></div>
+                            <div class="animate-pulse flex space-x-4"><div class="flex-1 space-y-4 py-1"><div class="h-4 bg-secondary rounded w-3/4"></div></div></div>
                         </div>
                     </div>
                 </div>
@@ -104,79 +159,93 @@
 
             <!-- 2. 熱門文案庫 -->
             <section id="section-templates" class="hidden max-w-6xl mx-auto space-y-6">
-                <div class="flex gap-4 mb-6">
-                    <input type="text" placeholder="關鍵字搜尋文案..." class="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none">
-                    <select class="rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none">
+                <!-- 手機版搜尋列改為上下排列 -->
+                <div class="flex flex-col md:flex-row gap-3 md:gap-4 mb-2">
+                    <input type="text" placeholder="關鍵字搜尋..." class="flex-1 rounded bg-input border border-border px-4 py-2 text-sm text-foreground focus:border-primary focus:outline-none">
+                    <select class="rounded bg-input border border-border px-4 py-2 text-sm text-foreground focus:border-primary focus:outline-none">
                         <option>所有分類</option><option>勵志</option><option>美食</option><option>旅行</option><option>科技</option>
                     </select>
                 </div>
-                <div id="templatesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div id="templatesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                     <!-- 文案動態生成 -->
                 </div>
             </section>
 
             <!-- 3. 排程與歷史列表 -->
-            <section id="section-schedule" class="hidden max-w-6xl mx-auto space-y-8">
+            <section id="section-schedule" class="hidden max-w-6xl mx-auto space-y-6 md:space-y-8">
                 <!-- 待執行排程 -->
-                <div class="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-xl">
-                    <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-                        <h3 class="font-medium text-blue-400"><i class="fa-solid fa-clock mr-2"></i>待執行排程</h3>
-                        <button onclick="loadDashboardData()" class="text-xs text-slate-400 hover:text-white"><i class="fa-solid fa-rotate-right"></i> 重新整理</button>
+                <div class="rounded bg-card border border-border overflow-hidden shadow-elegant">
+                    <div class="bg-secondary/20 px-4 md:px-6 py-3 md:py-4 border-b border-border flex justify-between items-center">
+                        <h3 class="font-medium text-[#38bdf8]"><i class="fa-solid fa-clock mr-2"></i>待發布清單</h3>
+                        <button onclick="loadDashboardData()" class="text-xs text-muted hover:text-foreground p-2 -m-2"><i class="fa-solid fa-rotate-right"></i></button>
                     </div>
+                    <!-- 手機版允許表格左右滑動 -->
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-slate-400 bg-slate-900/20 uppercase border-b border-slate-800">
-                                <tr><th class="px-6 py-3">時間</th><th class="px-6 py-3">帳號</th><th class="px-6 py-3">內容片段</th><th class="px-6 py-3">狀態</th><th class="px-6 py-3">操作</th></tr>
+                        <table class="w-full text-sm text-left whitespace-nowrap md:whitespace-normal">
+                            <thead class="text-xs text-muted bg-background/50 uppercase border-b border-border">
+                                <tr><th class="px-4 md:px-6 py-3">時間</th><th class="px-4 md:px-6 py-3">帳號</th><th class="px-4 md:px-6 py-3 min-w-[200px]">內容</th><th class="px-4 md:px-6 py-3">操作</th></tr>
                             </thead>
-                            <tbody id="scheduleTable" class="divide-y divide-slate-800/50">
-                                <!-- 動態生成 -->
-                            </tbody>
+                            <tbody id="scheduleTable" class="divide-y divide-border"></tbody>
                         </table>
                     </div>
                 </div>
 
                 <!-- 發文歷史 -->
-                <div class="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-xl">
-                    <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-800">
-                        <h3 class="font-medium text-green-400"><i class="fa-solid fa-check-double mr-2"></i>發文歷史紀錄</h3>
+                <div class="rounded bg-card border border-border overflow-hidden shadow-elegant">
+                    <div class="bg-secondary/20 px-4 md:px-6 py-3 md:py-4 border-b border-border">
+                        <h3 class="font-medium text-[#10b981]"><i class="fa-solid fa-check-double mr-2"></i>發文歷史</h3>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-slate-400 bg-slate-900/20 uppercase border-b border-slate-800">
-                                <tr><th class="px-6 py-3">發布時間</th><th class="px-6 py-3">帳號</th><th class="px-6 py-3">內容片段</th><th class="px-6 py-3">結果狀態</th></tr>
+                        <table class="w-full text-sm text-left whitespace-nowrap md:whitespace-normal">
+                            <thead class="text-xs text-muted bg-background/50 uppercase border-b border-border">
+                                <tr><th class="px-4 md:px-6 py-3">時間</th><th class="px-4 md:px-6 py-3">帳號</th><th class="px-4 md:px-6 py-3 min-w-[200px]">內容</th><th class="px-4 md:px-6 py-3">結果</th></tr>
                             </thead>
-                            <tbody id="historyTable" class="divide-y divide-slate-800/50">
-                                <!-- 動態生成 -->
-                            </tbody>
+                            <tbody id="historyTable" class="divide-y divide-border"></tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- 4. 計費與管理 (示意頁面) -->
-            <section id="section-billing" class="hidden max-w-4xl mx-auto space-y-6 text-center py-20">
-                <i class="fa-solid fa-lock text-6xl text-slate-700 mb-4"></i>
-                <h2 class="text-2xl font-bold text-slate-300">管理員功能與計費系統</h2>
-                <p class="text-slate-500">此模組包含：使用者角色管理、價格設定、用量統計。<br>目前為超級管理員權限鎖定狀態，需進階權限解鎖。</p>
+            <!-- 4. 計費與管理 -->
+            <section id="section-billing" class="hidden max-w-4xl mx-auto space-y-6 text-center py-12 md:py-20 px-4">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-secondary/30 text-primary mb-4 shadow-elegant">
+                    <i class="fa-solid fa-lock text-3xl"></i>
+                </div>
+                <h2 class="text-xl md:text-2xl font-bold text-foreground">管理員與計費系統</h2>
+                <p class="text-sm md:text-base text-muted max-w-md mx-auto leading-relaxed">此模組包含：使用者角色管理、價格設定、用量統計。<br>目前為超級管理員權限鎖定狀態。</p>
             </section>
 
         </div>
     </main>
 
     <script>
-        // --- 頁面切換邏輯 ---
+        // --- 頁面與導航列切換邏輯 ---
         const sections = ['compose', 'templates', 'schedule', 'billing'];
-        const titles = {'compose': '發文編輯器', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'billing': '計費與管理員設定'};
+        const titles = {'compose': '發文編輯器', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'billing': '管理員設定'};
         
         function switchTab(tabId) {
             sections.forEach(id => {
+                // 隱藏所有內容區塊
                 document.getElementById(`section-${id}`).classList.add('hidden');
-                document.getElementById(`tab-${id}`).className = 'tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors';
+                
+                // 重置桌面版 Tab 樣式
+                const dTab = document.getElementById(`tab-desktop-${id}`);
+                dTab.className = 'tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted hover:bg-secondary/50 hover:text-foreground rounded transition-colors';
+                
+                // 重置手機版 Tab 樣式
+                const mTab = document.getElementById(`tab-mobile-${id}`);
+                mTab.className = 'tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted hover:text-foreground transition-colors';
             });
+
+            // 顯示選擇的內容區塊
             document.getElementById(`section-${tabId}`).classList.remove('hidden');
-            let activeClass = tabId === 'compose' ? 'bg-indigo-600/10 text-indigo-400' : 'bg-slate-800 text-white';
-            document.getElementById(`tab-${tabId}`).className = `tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${activeClass}`;
             document.getElementById('pageTitle').innerText = titles[tabId];
+            
+            // 點亮桌面版 Tab
+            document.getElementById(`tab-desktop-${tabId}`).className = 'tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded text-primary bg-primary/10 transition-colors';
+            
+            // 點亮手機版 Tab
+            document.getElementById(`tab-mobile-${tabId}`).className = 'tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary transition-colors';
             
             if(tabId === 'schedule' || tabId === 'templates') loadDashboardData();
         }
@@ -193,13 +262,18 @@
         // --- 顯示提示框 ---
         function showAlert(msg, isSuccess) {
             const box = document.getElementById('globalAlert');
-            box.className = `mb-6 rounded-lg p-4 text-sm font-medium shadow-lg transition-all duration-300 ${isSuccess ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`;
-            box.innerHTML = `<i class="fa-solid ${isSuccess ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-2"></i> ${msg}`;
+            const bg = isSuccess ? 'bg-[#10b981]/10' : 'bg-destructive/10';
+            const border = isSuccess ? 'border-[#10b981]/20' : 'border-destructive/20';
+            const text = isSuccess ? 'text-[#10b981]' : 'text-destructive';
+            const icon = isSuccess ? 'fa-circle-check' : 'fa-circle-exclamation';
+            
+            box.className = `mb-6 rounded p-4 text-sm font-medium shadow-elegant transition-all duration-300 border ${bg} ${border} ${text}`;
+            box.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${msg}`;
             box.classList.remove('hidden');
-            setTimeout(() => box.classList.add('hidden'), 5000);
+            setTimeout(() => box.classList.add('hidden'), 4000);
         }
 
-        // --- 載入所有資料 (API) ---
+        // --- 載入 API 資料 ---
         async function loadDashboardData() {
             try {
                 const res = await fetch('/api/dashboard');
@@ -207,53 +281,54 @@
                 
                 // 渲染帳號
                 const accHtml = data.accounts.map((a, i) => `
-                    <label class="flex items-center p-3 rounded-lg border ${i===0?'border-indigo-500 bg-indigo-500/10':'border-slate-800 bg-slate-900'} cursor-pointer hover:border-indigo-500 transition-colors">
-                        <input type="radio" name="accountId" value="${a.id}" ${i===0?'checked':''} class="mr-3 accent-indigo-500">
-                        <span class="text-sm font-medium text-slate-200">${a.accountName}</span>
+                    <label class="flex items-center p-3 md:p-4 rounded border ${i===0?'border-primary bg-primary/5':'border-border bg-input'} cursor-pointer hover:border-primary transition-colors">
+                        <input type="radio" name="accountId" value="${a.id}" ${i===0?'checked':''} class="mr-3 accent-primary w-4 h-4">
+                        <span class="text-sm font-medium text-foreground">${a.accountName}</span>
                     </label>
                 `).join('');
-                document.getElementById('accountList').innerHTML = accHtml || '<p class="text-sm text-slate-500">無可用帳號</p>';
+                document.getElementById('accountList').innerHTML = accHtml || '<p class="text-sm text-muted">無可用帳號</p>';
 
                 // 渲染文案
                 const tplHtml = data.templates.map(t => `
-                    <div class="rounded-xl border border-slate-800 bg-slate-950 p-5 hover:border-indigo-500 transition-colors group">
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded">${t.category}</span>
-                            <span class="text-xs text-slate-500"><i class="fa-solid fa-fire text-orange-500/50"></i> ${t.usageCount} 次</span>
+                    <div class="rounded border border-border bg-card p-4 md:p-5 hover:border-primary transition-colors group flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-3">
+                                <span class="text-xs bg-secondary/50 text-foreground px-2 py-1 rounded">${t.category}</span>
+                                <span class="text-xs text-muted"><i class="fa-solid fa-fire text-[#f59e0b]/70 mr-1"></i>${t.usageCount}</span>
+                            </div>
+                            <h4 class="font-medium text-foreground mb-2 leading-tight">${t.title}</h4>
+                            <p class="text-sm text-muted line-clamp-3 mb-4 leading-relaxed">${t.content}</p>
                         </div>
-                        <h4 class="font-medium text-slate-200 mb-2">${t.title}</h4>
-                        <p class="text-sm text-slate-400 line-clamp-3 mb-4">${t.content}</p>
-                        <button onclick="useTemplate('${t.content.replace(/'/g, "\\'")}')" class="w-full py-2 text-sm text-indigo-400 bg-indigo-400/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">套用文案</button>
+                        <button onclick="useTemplate('${t.content.replace(/'/g, "\\'")}')" class="w-full py-2 text-sm text-primary bg-primary/10 hover:bg-primary/20 rounded md:opacity-0 group-hover:opacity-100 transition-all">套用此文案</button>
                     </div>
                 `).join('');
                 document.getElementById('templatesGrid').innerHTML = tplHtml;
 
                 // 渲染排程
                 const schHtml = data.schedules.map(s => `
-                    <tr class="hover:bg-slate-800/50 transition-colors">
-                        <td class="px-6 py-4">${s.scheduledAt}</td>
-                        <td class="px-6 py-4 text-indigo-400">${s.accountName}</td>
-                        <td class="px-6 py-4 truncate max-w-[200px] text-slate-300">${s.content}</td>
-                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded-full bg-orange-500/10 text-orange-400">等待執行</span></td>
-                        <td class="px-6 py-4"><button onclick="cancelSchedule(${s.id})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button></td>
+                    <tr class="hover:bg-secondary/20 transition-colors">
+                        <td class="px-4 md:px-6 py-4">${s.scheduledAt}</td>
+                        <td class="px-4 md:px-6 py-4 text-primary">${s.accountName}</td>
+                        <td class="px-4 md:px-6 py-4 truncate max-w-[150px] md:max-w-[250px] text-foreground">${s.content}</td>
+                        <td class="px-4 md:px-6 py-4"><button onclick="cancelSchedule(${s.id})" class="text-destructive hover:text-red-400 border border-destructive/20 bg-destructive/10 px-3 py-1.5 rounded text-xs transition-colors"><i class="fa-solid fa-trash mr-1"></i>取消</button></td>
                     </tr>
                 `).join('');
-                document.getElementById('scheduleTable').innerHTML = schHtml || '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500">目前沒有排程任務</td></tr>';
+                document.getElementById('scheduleTable').innerHTML = schHtml || '<tr><td colspan="4" class="px-4 py-8 text-center text-muted">目前沒有排程任務</td></tr>';
 
                 // 渲染歷史
                 const histHtml = data.history.map(h => {
                     const isSuccess = h.status === 'published';
-                    const statusClass = isSuccess ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400';
+                    const statusClass = isSuccess ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/20' : 'bg-destructive/10 text-destructive border-destructive/20';
                     const statusIcon = isSuccess ? 'fa-check' : 'fa-xmark';
                     return `
-                    <tr class="hover:bg-slate-800/50 transition-colors">
-                        <td class="px-6 py-4">${h.publishedAt}</td>
-                        <td class="px-6 py-4 text-indigo-400">${h.accountName}</td>
-                        <td class="px-6 py-4 truncate max-w-[200px] text-slate-300" title="${h.errorMessage || ''}">${h.content}</td>
-                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded-full ${statusClass}"><i class="fa-solid ${statusIcon} mr-1"></i>${isSuccess ? '成功' : '失敗'}</span></td>
+                    <tr class="hover:bg-secondary/20 transition-colors">
+                        <td class="px-4 md:px-6 py-4">${h.publishedAt || '-'}</td>
+                        <td class="px-4 md:px-6 py-4 text-primary">${h.accountName}</td>
+                        <td class="px-4 md:px-6 py-4 truncate max-w-[150px] md:max-w-[250px] text-foreground" title="${h.errorMessage || ''}">${h.content}</td>
+                        <td class="px-4 md:px-6 py-4"><span class="px-2 py-1 text-xs rounded border ${statusClass}"><i class="fa-solid ${statusIcon} mr-1"></i>${isSuccess ? '成功' : '失敗'}</span></td>
                     </tr>
                 `}).join('');
-                document.getElementById('historyTable').innerHTML = histHtml || '<tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">尚無發文紀錄</td></tr>';
+                document.getElementById('historyTable').innerHTML = histHtml || '<tr><td colspan="4" class="px-4 py-8 text-center text-muted">尚無發文紀錄</td></tr>';
 
             } catch(e) { console.error("資料載入失敗", e); }
         }
@@ -263,6 +338,7 @@
             document.getElementById('composeContent').value = text;
             switchTab('compose');
             showAlert('已套用文案範本！', true);
+            window.scrollTo({top: 0, behavior: 'smooth'}); // 手機版自動捲動到最上面
         }
 
         async function generateAI() {
@@ -294,10 +370,9 @@
             
             let scheduledAt;
             if(isImmediate) {
-                // 如果是立即發文，設定時間為 1 分鐘後 (讓背景機器人下一輪馬上抓到)
                 const now = new Date();
                 now.setMinutes(now.getMinutes() + 1);
-                const tzOffset = now.getTimezoneOffset() * 60000; // 本地時區處理
+                const tzOffset = now.getTimezoneOffset() * 60000;
                 scheduledAt = new Date(now - tzOffset).toISOString().slice(0, 19).replace('T', ' ');
             } else {
                 const d = document.getElementById('scheduleDate').value;
@@ -307,6 +382,7 @@
             }
 
             const btn = document.getElementById('submitBtn');
+            const origText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...';
             btn.disabled = true;
 
@@ -319,7 +395,7 @@
                 const result = await response.json();
                 
                 if(response.ok) {
-                    showAlert(isImmediate ? '任務已送出！系統將於 1 分鐘內處理完畢。' : result.message, true);
+                    showAlert(isImmediate ? '任務已送出！系統將於 1 分鐘內發布。' : result.message, true);
                     document.getElementById('composeContent').value = '';
                     setDefaultTime();
                 } else {
@@ -328,12 +404,12 @@
             } catch (e) {
                 showAlert('連線錯誤，儲存失敗', false);
             } finally {
-                btn.innerHTML = '<i class="fa-solid fa-clock mr-1"></i> 儲存排程';
+                btn.innerHTML = origText;
                 btn.disabled = false;
             }
         }
 
-        // 初始化載入
+        // 初始化
         loadDashboardData();
     </script>
 </body>

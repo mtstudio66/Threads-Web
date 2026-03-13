@@ -35,10 +35,21 @@ DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_FILE = os.path.join(BASE_DIR, 'index.html')
 
-def get_db_connection():
-    return mysql.connector.connect(
-        host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, database=DB_DATABASE
-    )
+def get_db_connection(retries=3, delay=2):
+    """取得資料庫連線，具備失敗自動重試機制"""
+    last_err = None
+    for i in range(retries):
+        try:
+            return mysql.connector.connect(
+                host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, database=DB_DATABASE
+            )
+        except Exception as err:
+            last_err = err
+            logger.warning(f"⚠️ 資料庫連線失敗，等待 {delay} 秒後重試 ({i+1}/{retries})... 錯誤: {err}")
+            time.sleep(delay)
+    
+    logger.error("❌ 無法連線至資料庫，請檢查環境變數 (MYSQL_HOST, MYSQL_PORT) 是否設定正確。")
+    raise last_err
 
 # --- 密碼雜湊工具函數 ---
 def hash_password(password):
@@ -60,7 +71,7 @@ def init_db():
     db = None
     cursor = None
     try:
-        logger.info("開始初始化資料庫...")
+        logger.info(f"開始初始化資料庫... 正在嘗試連線至 {DB_HOST}:{DB_PORT}")
         db = get_db_connection()
         cursor = db.cursor()
         
@@ -284,7 +295,7 @@ def get_dashboard_data():
     db = None
     cursor = None
     try:
-        db = get_db_connection()
+        db = get_db_connection(retries=1) # 為了避免 API 卡住，這裡重試次數設少一點
         cursor = db.cursor(dictionary=True)
         
         cursor.execute("SELECT id, accountName, isActive FROM threads_accounts")
@@ -331,7 +342,7 @@ def get_admin_data():
     db = None
     cursor = None
     try:
-        db = get_db_connection()
+        db = get_db_connection(retries=1)
         cursor = db.cursor(dictionary=True)
         cursor.execute("SELECT id, username, role, createdAt FROM users")
         users = cursor.fetchall()
@@ -370,7 +381,7 @@ def admin_login():
     if not username or not password:
         return jsonify({"success": False, "message": "請輸入帳號密碼"}), 400
     try:
-        db = get_db_connection()
+        db = get_db_connection(retries=1)
         cursor = db.cursor(dictionary=True)
         cursor.execute("SELECT id, username, password, role FROM users WHERE username = %s AND role = 'admin'", (username,))
         user = cursor.fetchone()
@@ -859,7 +870,7 @@ def process_posts():
     db = None
     cursor = None
     try:
-        db = get_db_connection()
+        db = get_db_connection(retries=1)
         cursor = db.cursor(dictionary=True)
         now = datetime.now()
         
@@ -926,3 +937,4 @@ worker_thread.start()
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))
+    

@@ -3,161 +3,338 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoThreader - 自動發文管理後台</title>
+    <title>AutoThreader - 全能發文管理系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script>
         tailwind.config = {
             darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        slate: {
-                            850: '#151e2e',
-                            900: '#0f172a',
-                            950: '#020617',
-                        }
-                    }
-                }
-            }
+            theme: { extend: { colors: { slate: { 850: '#151e2e', 900: '#0f172a', 950: '#020617' } } } }
         }
     </script>
-    <style>
-        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
-    </style>
+    <style>body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }</style>
 </head>
 <body class="bg-slate-950 text-slate-50 h-screen flex overflow-hidden">
 
-    <!-- 側邊欄 -->
-    <aside class="w-64 border-r border-slate-800 bg-slate-950 hidden md:flex flex-col">
+    <!-- 左側導航菜單 -->
+    <aside class="w-64 border-r border-slate-800 bg-slate-950 hidden md:flex flex-col z-10">
         <div class="flex h-16 items-center px-6 border-b border-slate-800">
             <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
-                <i class="fa-solid fa-pen-to-square text-indigo-500"></i> AutoThreader
+                <i class="fa-solid fa-bolt text-indigo-500"></i> AutoThreader
             </h1>
         </div>
-        <nav class="flex-1 space-y-1 px-3 py-4">
-            <button class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium bg-indigo-600/10 text-indigo-400">
-                <i class="fa-solid fa-pen-nib w-5 text-center"></i> 發文編輯器
+        <nav class="flex-1 space-y-2 px-3 py-4">
+            <button onclick="switchTab('compose')" id="tab-compose" class="tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium bg-indigo-600/10 text-indigo-400">
+                <i class="fa-solid fa-pen-nib w-5"></i> 發文編輯器
             </button>
-            <button class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors">
-                <i class="fa-solid fa-users w-5 text-center"></i> 帳號管理
+            <button onclick="switchTab('templates')" id="tab-templates" class="tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors">
+                <i class="fa-solid fa-fire w-5 text-orange-400"></i> 熱門文案庫
             </button>
-            <button class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors">
-                <i class="fa-solid fa-clock w-5 text-center"></i> 排程列表
+            <button onclick="switchTab('schedule')" id="tab-schedule" class="tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors">
+                <i class="fa-solid fa-clock w-5 text-blue-400"></i> 排程與歷史
+            </button>
+            <button onclick="switchTab('billing')" id="tab-billing" class="tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors">
+                <i class="fa-solid fa-money-check-dollar w-5 text-green-400"></i> 計費與管理
             </button>
         </nav>
     </aside>
 
-    <!-- 主內容區 -->
-    <main class="flex-1 flex flex-col overflow-hidden bg-slate-900">
-        <header class="flex h-16 items-center justify-between border-b border-slate-800 px-6 bg-slate-950/50 backdrop-blur">
-            <h2 class="text-lg font-semibold">新增貼文</h2>
-            <div class="flex items-center gap-4">
-                <div class="h-8 w-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-sm font-bold shadow-lg shadow-blue-500/20">Me</div>
+    <!-- 右側主內容區 -->
+    <main class="flex-1 flex flex-col overflow-hidden bg-slate-900 relative">
+        <header class="flex h-16 items-center justify-between border-b border-slate-800 px-6 bg-slate-950/80 backdrop-blur sticky top-0 z-10">
+            <h2 id="pageTitle" class="text-lg font-semibold tracking-wide">發文編輯器</h2>
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-full"><i class="fa-solid fa-circle-check text-xs"></i> 系統運作中</span>
+                <div class="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold shadow-lg">Me</div>
             </div>
         </header>
 
         <div class="flex-1 overflow-y-auto p-6 md:p-8">
-            <div class="max-w-3xl mx-auto space-y-6">
-                
-                <!-- 狀態提示框 -->
-                <div id="statusAlert" class="hidden rounded-lg p-4 text-sm font-medium"></div>
+            <!-- Alert 提示框 -->
+            <div id="globalAlert" class="hidden mb-6 rounded-lg p-4 text-sm font-medium shadow-lg transition-all duration-300"></div>
 
-                <div class="rounded-xl border border-slate-800 bg-slate-950 p-6 shadow-xl">
-                    <!-- 表單 -->
-                    <form id="postForm" class="space-y-5">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-400 mb-2">發布至帳號 (測試預設 ID: 1)</label>
-                            <select id="accountId" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-white transition-all">
-                                <option value="1">預設測試帳號 (@my_threads)</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-slate-400 mb-2">貼文內容</label>
-                            <textarea id="content" rows="5" required
-                                class="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-white resize-none transition-all placeholder-slate-600"
-                                placeholder="今天想分享什麼酷東西？"></textarea>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-400 mb-2">排程日期</label>
-                                <input type="date" id="scheduleDate" required
-                                    class="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-white css-color-scheme-dark">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-400 mb-2">排程時間</label>
-                                <input type="time" id="scheduleTime" required
-                                    class="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-white css-color-scheme-dark">
-                            </div>
-                        </div>
-
-                        <div class="flex justify-end pt-6 border-t border-slate-800 mt-6">
-                            <button type="submit" id="submitBtn" class="flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/25 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-950">
-                                <i class="fa-solid fa-paper-plane"></i> 儲存排程
+            <!-- 1. 發文編輯器 -->
+            <section id="section-compose" class="max-w-4xl mx-auto space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-950 p-6 shadow-xl relative">
+                        <div class="flex justify-between items-center mb-4">
+                            <label class="block text-sm font-medium text-slate-300">撰寫貼文</label>
+                            <button onclick="generateAI()" id="aiBtn" class="text-xs bg-purple-500/20 text-purple-300 px-3 py-1.5 rounded-md hover:bg-purple-500/40 transition-colors flex items-center gap-1">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> AI 幫我寫
                             </button>
                         </div>
-                    </form>
+                        <textarea id="composeContent" rows="6" required class="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-white resize-none transition-all placeholder-slate-600 mb-4" placeholder="今天想分享什麼？支援圖片上傳..."></textarea>
+                        
+                        <div class="flex items-center gap-4 py-3 border-y border-slate-800 mb-4">
+                            <button class="text-sm text-slate-400 hover:text-indigo-400 flex items-center gap-2"><i class="fa-solid fa-image"></i> 上傳圖片 (S3)</button>
+                            <button class="text-sm text-slate-400 hover:text-orange-400 flex items-center gap-2" onclick="switchTab('templates')"><i class="fa-solid fa-fire"></i> 套用熱門文案</button>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">排程日期 (若留空則立即發文)</label>
+                                <input type="date" id="scheduleDate" class="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none text-white css-color-scheme-dark">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">排程時間</label>
+                                <input type="time" id="scheduleTime" class="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none text-white css-color-scheme-dark">
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3">
+                            <button onclick="submitPost(true)" class="px-5 py-2 text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+                                <i class="fa-solid fa-paper-plane mr-1"></i> 立即發文
+                            </button>
+                            <button onclick="submitPost(false)" id="submitBtn" class="px-6 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-lg shadow-indigo-500/25">
+                                <i class="fa-solid fa-clock mr-1"></i> 儲存排程
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 帳號選擇側欄 -->
+                    <div class="rounded-xl border border-slate-800 bg-slate-950 p-6 shadow-xl h-fit">
+                        <label class="block text-sm font-medium text-slate-300 mb-4"><i class="fa-solid fa-users mr-2"></i>發布目標帳號</label>
+                        <div id="accountList" class="space-y-3">
+                            <!-- 帳號列表動態生成 -->
+                            <div class="animate-pulse flex space-x-4"><div class="flex-1 space-y-4 py-1"><div class="h-4 bg-slate-800 rounded w-3/4"></div></div></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
+
+            <!-- 2. 熱門文案庫 -->
+            <section id="section-templates" class="hidden max-w-6xl mx-auto space-y-6">
+                <div class="flex gap-4 mb-6">
+                    <input type="text" placeholder="關鍵字搜尋文案..." class="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none">
+                    <select class="rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none">
+                        <option>所有分類</option><option>勵志</option><option>美食</option><option>旅行</option><option>科技</option>
+                    </select>
+                </div>
+                <div id="templatesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- 文案動態生成 -->
+                </div>
+            </section>
+
+            <!-- 3. 排程與歷史列表 -->
+            <section id="section-schedule" class="hidden max-w-6xl mx-auto space-y-8">
+                <!-- 待執行排程 -->
+                <div class="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-xl">
+                    <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+                        <h3 class="font-medium text-blue-400"><i class="fa-solid fa-clock mr-2"></i>待執行排程</h3>
+                        <button onclick="loadDashboardData()" class="text-xs text-slate-400 hover:text-white"><i class="fa-solid fa-rotate-right"></i> 重新整理</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-slate-400 bg-slate-900/20 uppercase border-b border-slate-800">
+                                <tr><th class="px-6 py-3">時間</th><th class="px-6 py-3">帳號</th><th class="px-6 py-3">內容片段</th><th class="px-6 py-3">狀態</th><th class="px-6 py-3">操作</th></tr>
+                            </thead>
+                            <tbody id="scheduleTable" class="divide-y divide-slate-800/50">
+                                <!-- 動態生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 發文歷史 -->
+                <div class="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-xl">
+                    <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-800">
+                        <h3 class="font-medium text-green-400"><i class="fa-solid fa-check-double mr-2"></i>發文歷史紀錄</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-slate-400 bg-slate-900/20 uppercase border-b border-slate-800">
+                                <tr><th class="px-6 py-3">發布時間</th><th class="px-6 py-3">帳號</th><th class="px-6 py-3">內容片段</th><th class="px-6 py-3">結果狀態</th></tr>
+                            </thead>
+                            <tbody id="historyTable" class="divide-y divide-slate-800/50">
+                                <!-- 動態生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. 計費與管理 (示意頁面) -->
+            <section id="section-billing" class="hidden max-w-4xl mx-auto space-y-6 text-center py-20">
+                <i class="fa-solid fa-lock text-6xl text-slate-700 mb-4"></i>
+                <h2 class="text-2xl font-bold text-slate-300">管理員功能與計費系統</h2>
+                <p class="text-slate-500">此模組包含：使用者角色管理、價格設定、用量統計。<br>目前為超級管理員權限鎖定狀態，需進階權限解鎖。</p>
+            </section>
+
         </div>
     </main>
 
     <script>
-        // 設定預設時間為現在時間加 5 分鐘
-        const now = new Date();
-        now.setMinutes(now.getMinutes() + 5);
+        // --- 頁面切換邏輯 ---
+        const sections = ['compose', 'templates', 'schedule', 'billing'];
+        const titles = {'compose': '發文編輯器', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'billing': '計費與管理員設定'};
         
-        document.getElementById('scheduleDate').value = now.toISOString().split('T')[0];
-        document.getElementById('scheduleTime').value = now.toTimeString().slice(0,5);
-
-        // 提交表單邏輯
-        document.getElementById('postForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        function switchTab(tabId) {
+            sections.forEach(id => {
+                document.getElementById(`section-${id}`).classList.add('hidden');
+                document.getElementById(`tab-${id}`).className = 'tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-50 transition-colors';
+            });
+            document.getElementById(`section-${tabId}`).classList.remove('hidden');
+            let activeClass = tabId === 'compose' ? 'bg-indigo-600/10 text-indigo-400' : 'bg-slate-800 text-white';
+            document.getElementById(`tab-${tabId}`).className = `tab-btn flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${activeClass}`;
+            document.getElementById('pageTitle').innerText = titles[tabId];
             
+            if(tabId === 'schedule' || tabId === 'templates') loadDashboardData();
+        }
+
+        // --- 設定預設時間 ---
+        function setDefaultTime() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 10);
+            document.getElementById('scheduleDate').value = now.toISOString().split('T')[0];
+            document.getElementById('scheduleTime').value = now.toTimeString().slice(0,5);
+        }
+        setDefaultTime();
+
+        // --- 顯示提示框 ---
+        function showAlert(msg, isSuccess) {
+            const box = document.getElementById('globalAlert');
+            box.className = `mb-6 rounded-lg p-4 text-sm font-medium shadow-lg transition-all duration-300 ${isSuccess ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`;
+            box.innerHTML = `<i class="fa-solid ${isSuccess ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-2"></i> ${msg}`;
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 5000);
+        }
+
+        // --- 載入所有資料 (API) ---
+        async function loadDashboardData() {
+            try {
+                const res = await fetch('/api/dashboard');
+                const data = await res.json();
+                
+                // 渲染帳號
+                const accHtml = data.accounts.map((a, i) => `
+                    <label class="flex items-center p-3 rounded-lg border ${i===0?'border-indigo-500 bg-indigo-500/10':'border-slate-800 bg-slate-900'} cursor-pointer hover:border-indigo-500 transition-colors">
+                        <input type="radio" name="accountId" value="${a.id}" ${i===0?'checked':''} class="mr-3 accent-indigo-500">
+                        <span class="text-sm font-medium text-slate-200">${a.accountName}</span>
+                    </label>
+                `).join('');
+                document.getElementById('accountList').innerHTML = accHtml || '<p class="text-sm text-slate-500">無可用帳號</p>';
+
+                // 渲染文案
+                const tplHtml = data.templates.map(t => `
+                    <div class="rounded-xl border border-slate-800 bg-slate-950 p-5 hover:border-indigo-500 transition-colors group">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded">${t.category}</span>
+                            <span class="text-xs text-slate-500"><i class="fa-solid fa-fire text-orange-500/50"></i> ${t.usageCount} 次</span>
+                        </div>
+                        <h4 class="font-medium text-slate-200 mb-2">${t.title}</h4>
+                        <p class="text-sm text-slate-400 line-clamp-3 mb-4">${t.content}</p>
+                        <button onclick="useTemplate('${t.content.replace(/'/g, "\\'")}')" class="w-full py-2 text-sm text-indigo-400 bg-indigo-400/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">套用文案</button>
+                    </div>
+                `).join('');
+                document.getElementById('templatesGrid').innerHTML = tplHtml;
+
+                // 渲染排程
+                const schHtml = data.schedules.map(s => `
+                    <tr class="hover:bg-slate-800/50 transition-colors">
+                        <td class="px-6 py-4">${s.scheduledAt}</td>
+                        <td class="px-6 py-4 text-indigo-400">${s.accountName}</td>
+                        <td class="px-6 py-4 truncate max-w-[200px] text-slate-300">${s.content}</td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded-full bg-orange-500/10 text-orange-400">等待執行</span></td>
+                        <td class="px-6 py-4"><button onclick="cancelSchedule(${s.id})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button></td>
+                    </tr>
+                `).join('');
+                document.getElementById('scheduleTable').innerHTML = schHtml || '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500">目前沒有排程任務</td></tr>';
+
+                // 渲染歷史
+                const histHtml = data.history.map(h => {
+                    const isSuccess = h.status === 'published';
+                    const statusClass = isSuccess ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400';
+                    const statusIcon = isSuccess ? 'fa-check' : 'fa-xmark';
+                    return `
+                    <tr class="hover:bg-slate-800/50 transition-colors">
+                        <td class="px-6 py-4">${h.publishedAt}</td>
+                        <td class="px-6 py-4 text-indigo-400">${h.accountName}</td>
+                        <td class="px-6 py-4 truncate max-w-[200px] text-slate-300" title="${h.errorMessage || ''}">${h.content}</td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded-full ${statusClass}"><i class="fa-solid ${statusIcon} mr-1"></i>${isSuccess ? '成功' : '失敗'}</span></td>
+                    </tr>
+                `}).join('');
+                document.getElementById('historyTable').innerHTML = histHtml || '<tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">尚無發文紀錄</td></tr>';
+
+            } catch(e) { console.error("資料載入失敗", e); }
+        }
+
+        // --- 功能函數 ---
+        function useTemplate(text) {
+            document.getElementById('composeContent').value = text;
+            switchTab('compose');
+            showAlert('已套用文案範本！', true);
+        }
+
+        async function generateAI() {
+            const btn = document.getElementById('aiBtn');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
+            try {
+                const res = await fetch('/api/generate-ai', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({topic:'網路行銷'})});
+                const data = await res.json();
+                document.getElementById('composeContent').value = data.content;
+            } catch(e) { showAlert('AI 生成失敗', false); }
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI 幫我寫';
+        }
+
+        async function cancelSchedule(id) {
+            if(!confirm('確定要取消此排程嗎？')) return;
+            try {
+                await fetch(`/api/schedule/${id}`, {method:'DELETE'});
+                showAlert('排程已取消', true);
+                loadDashboardData();
+            } catch(e) { showAlert('取消失敗', false); }
+        }
+
+        async function submitPost(isImmediate) {
+            const content = document.getElementById('composeContent').value;
+            if(!content) return showAlert('請輸入貼文內容！', false);
+            
+            const selectedAccount = document.querySelector('input[name="accountId"]:checked');
+            const accountId = selectedAccount ? selectedAccount.value : 1;
+            
+            let scheduledAt;
+            if(isImmediate) {
+                // 如果是立即發文，設定時間為 1 分鐘後 (讓背景機器人下一輪馬上抓到)
+                const now = new Date();
+                now.setMinutes(now.getMinutes() + 1);
+                const tzOffset = now.getTimezoneOffset() * 60000; // 本地時區處理
+                scheduledAt = new Date(now - tzOffset).toISOString().slice(0, 19).replace('T', ' ');
+            } else {
+                const d = document.getElementById('scheduleDate').value;
+                const t = document.getElementById('scheduleTime').value;
+                if(!d || !t) return showAlert('請選擇排程時間！', false);
+                scheduledAt = `${d} ${t}:00`;
+            }
+
             const btn = document.getElementById('submitBtn');
-            const alertBox = document.getElementById('statusAlert');
-            const originalBtnText = btn.innerHTML;
-            
-            // 改變按鈕狀態
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 儲存中...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...';
             btn.disabled = true;
-            btn.classList.add('opacity-75');
-
-            const content = document.getElementById('content').value;
-            const date = document.getElementById('scheduleDate').value;
-            const time = document.getElementById('scheduleTime').value;
-            const scheduledAt = `${date} ${time}:00`;
 
             try {
-                // 呼叫我們在 bot.py 裡面寫好的 API
                 const response = await fetch('/api/schedule', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content, scheduledAt })
+                    body: JSON.stringify({ content, scheduledAt, accountId })
                 });
-
                 const result = await response.json();
-
-                alertBox.classList.remove('hidden', 'bg-red-500/10', 'text-red-400', 'border-red-500/20');
-                alertBox.classList.add('bg-green-500/10', 'text-green-400', 'border', 'border-green-500/20');
-                alertBox.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i> ' + result.message;
                 
-                // 清空輸入框
-                document.getElementById('content').value = '';
-                
-            } catch (error) {
-                alertBox.classList.remove('hidden', 'bg-green-500/10', 'text-green-400', 'border-green-500/20');
-                alertBox.classList.add('bg-red-500/10', 'text-red-400', 'border', 'border-red-500/20');
-                alertBox.innerHTML = '<i class="fa-solid fa-circle-exclamation mr-2"></i> 儲存失敗，請檢查連線。';
+                if(response.ok) {
+                    showAlert(isImmediate ? '任務已送出！系統將於 1 分鐘內處理完畢。' : result.message, true);
+                    document.getElementById('composeContent').value = '';
+                    setDefaultTime();
+                } else {
+                    showAlert(result.message, false);
+                }
+            } catch (e) {
+                showAlert('連線錯誤，儲存失敗', false);
             } finally {
-                // 恢復按鈕
-                btn.innerHTML = originalBtnText;
+                btn.innerHTML = '<i class="fa-solid fa-clock mr-1"></i> 儲存排程';
                 btn.disabled = false;
-                btn.classList.remove('opacity-75');
             }
-        });
+        }
+
+        // 初始化載入
+        loadDashboardData();
     </script>
 </body>
 </html>

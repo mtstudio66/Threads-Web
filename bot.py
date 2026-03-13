@@ -1,921 +1,1527 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 強制清除快取標頭 -->
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <title>AutoThreader - 終極 SaaS 管理系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --radius: 0.75rem;
+            --background: oklch(0.10 0.01 260); --foreground: oklch(0.95 0.005 260);
+            --card: oklch(0.14 0.015 260); --card-foreground: oklch(0.95 0.005 260);
+            --primary: oklch(0.72 0.18 280); --primary-foreground: oklch(0.10 0.01 260);
+            --secondary: oklch(0.20 0.02 260); --secondary-foreground: oklch(0.85 0.01 260);
+            --muted: oklch(0.18 0.015 260); --muted-foreground: oklch(0.55 0.02 260);
+            --destructive: oklch(0.60 0.22 25); --border: oklch(0.22 0.02 260);
+            --input: oklch(0.18 0.015 260); --ring: oklch(0.72 0.18 280);
+        }
+        body { background-color: var(--background); color: var(--foreground); font-family: 'Inter', 'Noto Sans TC', sans-serif; color-scheme: dark; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--radius); }
+    </style>
 
-import os
-import time
-import json
-import logging
-import threading
-import hashlib
-import secrets
-import requests
-from datetime import datetime
-import mysql.connector
-from flask import Flask, request, jsonify, make_response
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: 'var(--background)', foreground: 'var(--foreground)', card: 'var(--card)', 
+                        primary: 'var(--primary)', secondary: 'var(--secondary)', muted: 'var(--muted)',
+                        'muted-foreground': 'var(--muted-foreground)', destructive: 'var(--destructive)', 
+                        border: 'var(--border)', input: 'var(--input)'
+                    },
+                    borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)' },
+                    boxShadow: { 'elegant': '0 4px 20px -5px rgba(0,0,0,0.4)' }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="h-screen flex overflow-hidden antialiased selection:bg-primary selection:text-white">
 
-# --- 1. 設定日誌 ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+    <!-- 桌面版導航 -->
+    <aside class="w-64 border-r border-border bg-background hidden md:flex flex-col z-20 shadow-elegant">
+        <div class="flex h-16 items-center px-6 border-b border-border">
+            <h1 class="text-xl font-bold text-primary flex items-center gap-2"><i class="fa-solid fa-bolt"></i> AutoThreader</h1>
+        </div>
+        <nav class="flex-1 space-y-2 px-4 py-6">
+            <button onclick="switchTab('compose')" id="tab-desktop-compose" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded-md bg-secondary text-foreground transition-colors"><i class="fa-solid fa-pen-nib w-5"></i> 發文編輯</button>
+            <button onclick="switchTab('accounts')" id="tab-desktop-accounts" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-users w-5"></i> 帳號管理</button>
+            <button onclick="switchTab('templates')" id="tab-desktop-templates" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-fire w-5"></i> 熱門文案</button>
+            <button onclick="switchTab('schedule')" id="tab-desktop-schedule" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-clock w-5"></i> 排程歷史</button>
+            <button onclick="switchTab('admin')" id="tab-desktop-admin" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-wallet w-5"></i> 計費管理</button>
+        </nav>
+    </aside>
 
-app = Flask(__name__)
-# 停用 Flask 預設的靜態檔案快取
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    <!-- 手機版底部導航 -->
+    <nav class="md:hidden fixed bottom-0 left-0 w-full h-16 bg-background border-t border-border z-50 flex justify-around items-center px-1 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+        <button onclick="switchTab('compose')" id="tab-mobile-compose" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary"><i class="fa-solid fa-pen-nib text-lg mb-1"></i><span class="text-[10px] font-medium">編輯</span></button>
+        <button onclick="switchTab('accounts')" id="tab-mobile-accounts" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-users text-lg mb-1"></i><span class="text-[10px] font-medium">帳號</span></button>
+        <button onclick="switchTab('templates')" id="tab-mobile-templates" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-fire text-lg mb-1"></i><span class="text-[10px] font-medium">文案</span></button>
+        <button onclick="switchTab('schedule')" id="tab-mobile-schedule" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-clock text-lg mb-1"></i><span class="text-[10px] font-medium">歷史</span></button>
+        <button onclick="switchTab('admin')" id="tab-mobile-admin" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-wallet text-lg mb-1"></i><span class="text-[10px] font-medium">管理</span></button>
+    </nav>
 
-# --- 2. 常數與環境變數 ---
-THREADS_API_URL = "https://graph.threads.net/v1.0/me/threads"
-CHECK_INTERVAL_SECONDS = 60
+    <!-- 主內容區 -->
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        <header class="flex h-14 md:h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 sticky top-0 z-10">
+            <h2 id="pageTitle" class="text-base md:text-lg font-semibold tracking-wide">發文編輯器</h2>
+            <div class="flex items-center gap-3">
+                <span class="hidden md:inline-flex items-center gap-1 text-xs text-[#10b981] bg-[#10b981]/10 px-2 py-1 rounded border border-[#10b981]/20"><i class="fa-solid fa-circle-check"></i> 系統上線</span>
+                <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-white shadow-elegant">M</div>
+            </div>
+        </header>
 
-DB_HOST = os.getenv("MYSQL_HOST", "localhost")
-DB_PORT = int(os.getenv("MYSQL_PORT", 3306))
-DB_USER = os.getenv("MYSQL_USERNAME") or os.getenv("MYSQL_USER", "root")
-DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
-DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
+            <div id="globalAlert" class="hidden mb-6 rounded-md p-4 text-sm font-medium shadow-elegant transition-all duration-300 border"></div>
 
-# 絕對路徑讀取 index.html
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-INDEX_FILE = os.path.join(BASE_DIR, 'index.html')
+            <!-- 1. 發文編輯器 -->
+            <section id="section-compose" class="max-w-5xl mx-auto space-y-6 animate-fade-in">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 rounded-lg bg-card border border-border p-5 shadow-elegant">
+                        <div class="flex justify-between items-center mb-4">
+                            <label class="block text-sm font-medium">撰寫貼文</label>
+                            <button onclick="generateAI()" id="aiBtn" class="text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-md hover:bg-primary/20 border border-primary/20"><i class="fa-solid fa-wand-magic-sparkles"></i> AI 智能生成</button>
+                        </div>
+                        <textarea id="composeContent" rows="5" class="w-full rounded-md bg-input border border-border px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground resize-none mb-3" placeholder="想分享什麼？支援 Threads 發文..."></textarea>
+                        
+                        <div class="mb-4">
+                            <input type="file" id="imageUpload" accept="image/*" class="hidden" onchange="uploadImage(event)">
+                            <div id="imagePreviewContainer" class="hidden relative inline-block mb-3">
+                                <img id="imagePreview" src="" class="h-32 w-auto rounded-md border border-border object-cover">
+                                <button onclick="removeImage()" class="absolute -top-2 -right-2 bg-destructive text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="flex gap-4 border-y border-border py-3">
+                                <button onclick="document.getElementById('imageUpload').click()" id="uploadBtn" class="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2"><i class="fa-solid fa-image"></i> 上傳圖片 (S3)</button>
+                                <button onclick="switchTab('templates')" class="text-sm text-muted-foreground hover:text-primary flex items-center gap-2"><i class="fa-solid fa-fire"></i> 熱門文案</button>
+                            </div>
+                        </div>
 
-def get_db_connection():
-    return mysql.connector.connect(
-        host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, database=DB_DATABASE
-    )
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="block text-xs text-muted-foreground mb-1">排程日期 (留空=立即發)</label>
+                                <input type="date" id="scheduleDate" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground css-color-scheme-dark">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-muted-foreground mb-1">排程時間</label>
+                                <input type="time" id="scheduleTime" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground css-color-scheme-dark">
+                            </div>
+                        </div>
 
-# --- 密碼雜湊工具函數 ---
-def hash_password(password):
-    """使用 SHA-256 加鹽雜湊密碼"""
-    salt = secrets.token_hex(16)
-    hashed = hashlib.sha256((salt + password).encode()).hexdigest()
-    return f"{salt}:{hashed}"
+                        <div class="flex justify-end gap-3">
+                            <button onclick="submitPost(true)" class="px-5 py-2.5 text-sm font-medium bg-secondary hover:bg-secondary/80 rounded-md transition-colors"><i class="fa-solid fa-paper-plane mr-1"></i> 立即發文</button>
+                            <button onclick="submitPost(false)" id="submitBtn" class="px-6 py-2.5 text-sm font-medium text-white bg-primary hover:opacity-90 rounded-md shadow-elegant transition-opacity"><i class="fa-solid fa-clock mr-1"></i> 儲存排程</button>
+                        </div>
+                    </div>
 
-def verify_password(password, stored_hash):
-    """驗證密碼是否正確"""
-    if ':' not in stored_hash:
-        # 舊版無雜湊密碼，直接比對 (向下相容)
-        return password == stored_hash
-    salt, hashed = stored_hash.split(':')
-    return hashlib.sha256((salt + password).encode()).hexdigest() == hashed
+                    <div class="rounded-lg bg-card border border-border p-5 shadow-elegant h-fit">
+                        <label class="block text-sm font-medium mb-4"><i class="fa-solid fa-users mr-2 text-primary"></i>發布目標帳號</label>
+                        <div id="accountList" class="space-y-3"></div>
+                        <button onclick="switchTab('accounts')" class="mt-4 w-full py-2 text-xs text-muted-foreground border border-dashed border-border rounded hover:text-foreground">管理帳號</button>
+                    </div>
+                </div>
+            </section>
 
-def init_db():
-    """建立 SaaS 系統完整資料庫結構，並強制修復缺失資料"""
-    db = None
-    cursor = None
-    try:
-        logger.info("開始初始化資料庫...")
-        db = get_db_connection()
-        cursor = db.cursor()
-        
-        # 建立帳號表、排程表、歷史表 (保留既有結構)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS threads_accounts (
-                id INT AUTO_INCREMENT PRIMARY KEY, accountName VARCHAR(128) NOT NULL,
-                accessToken TEXT NOT NULL, isActive BOOLEAN DEFAULT TRUE, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS scheduled_posts (
-                id INT AUTO_INCREMENT PRIMARY KEY, accountId INT NOT NULL, content TEXT NOT NULL,
-                imageUrl TEXT, scheduledAt TIMESTAMP NOT NULL, status VARCHAR(20) DEFAULT 'pending',
-                postId INT, errorMessage TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS posts (
-                id INT AUTO_INCREMENT PRIMARY KEY, accountId INT NOT NULL, content TEXT NOT NULL,
-                imageUrl TEXT, threadsPostId VARCHAR(128), status VARCHAR(20),
-                errorMessage TEXT, publishedAt TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # 建立文案表
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS trending_templates (
-                id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(256) NOT NULL UNIQUE, content TEXT NOT NULL,
-                category VARCHAR(64) NOT NULL, usageCount INT DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            <!-- 2. 帳號管理 -->
+            <section id="section-accounts" class="hidden max-w-4xl mx-auto space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
+                        <h3 class="font-medium mb-4"><i class="fa-solid fa-plus mr-2 text-primary"></i>綁定新帳號</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs text-muted-foreground block mb-1">Threads 帳號名稱</label>
+                                <input type="text" id="newAccName" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="例如: @my_account">
+                            </div>
+                            <div>
+                                <label class="text-xs text-muted-foreground block mb-1">Threads API Token</label>
+                                <input type="password" id="newAccToken" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                            </div>
+                            <button onclick="addAccount()" class="w-full py-2 text-sm font-medium bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-link mr-1"></i> 確認綁定</button>
+                        </div>
+                    </div>
+                    
+                    <div class="rounded-lg bg-card border border-border p-0 shadow-elegant overflow-hidden">
+                        <div class="bg-secondary/20 px-5 py-3 border-b border-border">
+                            <h3 class="font-medium text-sm">已綁定清單</h3>
+                        </div>
+                        <div id="manageAccountList" class="divide-y divide-border"></div>
+                    </div>
+                </div>
+            </section>
 
-        # 【新增】使用者表與計費設定表
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(64) NOT NULL UNIQUE,
-                password VARCHAR(255) NOT NULL, email VARCHAR(128),
-                role ENUM('user', 'admin') DEFAULT 'user', 
-                planId INT DEFAULT NULL, isActive BOOLEAN DEFAULT TRUE,
-                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS billing_settings (
-                id INT AUTO_INCREMENT PRIMARY KEY, pricePerPost DECIMAL(10,2) DEFAULT 0.5,
-                freeQuota INT DEFAULT 100, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS user_usage (
-                id INT AUTO_INCREMENT PRIMARY KEY, userId INT DEFAULT 1, month VARCHAR(7) NOT NULL,
-                postCount INT DEFAULT 0, totalCost DECIMAL(10,2) DEFAULT 0, UNIQUE(userId, month)
-            )
-        """)
-        
-        # 【新增】訂閱方案表
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS subscription_plans (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                planName VARCHAR(64) NOT NULL UNIQUE,
-                description TEXT,
-                priceUsdt DECIMAL(10,2) NOT NULL DEFAULT 0,
-                monthlyPostLimit INT DEFAULT 100,
-                aiGenerationLimit INT DEFAULT 50,
-                features JSON,
-                isActive BOOLEAN DEFAULT TRUE,
-                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # 【新增】使用者權限表
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS user_permissions (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                userId INT NOT NULL,
-                permission VARCHAR(64) NOT NULL,
-                grantedBy INT,
-                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(userId, permission)
-            )
-        """)
-        
-        # 【新增】USDT付款設定表
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS usdt_settings (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                walletAddress VARCHAR(128) NOT NULL,
-                networkType ENUM('TRC20', 'ERC20', 'BEP20') DEFAULT 'TRC20',
-                minPaymentAmount DECIMAL(10,2) DEFAULT 10.00,
-                isActive BOOLEAN DEFAULT TRUE,
-                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # 【新增】付款記錄表
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS payment_records (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                userId INT NOT NULL,
-                planId INT NOT NULL,
-                amountUsdt DECIMAL(10,2) NOT NULL,
-                txHash VARCHAR(128),
-                status ENUM('pending', 'confirmed', 'failed', 'expired') DEFAULT 'pending',
-                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                confirmedAt TIMESTAMP NULL
-            )
-        """)
+            <!-- 3. 熱門文案庫 -->
+            <section id="section-templates" class="hidden max-w-5xl mx-auto space-y-6">
+                <div class="flex flex-col md:flex-row gap-3 mb-4">
+                    <input type="text" id="searchKeyword" onkeyup="filterTemplates()" placeholder="搜尋文案內容..." class="flex-1 rounded-md bg-input border border-border px-4 py-2 text-sm focus:border-primary focus:outline-none">
+                    <select id="filterCategory" onchange="filterTemplates()" class="rounded-md bg-input border border-border px-4 py-2 text-sm focus:border-primary focus:outline-none">
+                        <option value="all">所有分類</option><option value="勵志">勵志</option><option value="美食">美食</option><option value="旅行">旅行</option><option value="科技">科技</option><option value="搞笑">搞笑</option>
+                    </select>
+                </div>
+                <div id="templatesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+            </section>
 
-        # --- 資料庫欄位遷移 (確保舊資料庫有新欄位) ---
-        def column_exists(table_name, column_name):
-            cursor.execute("""
-                SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s
-            """, (DB_DATABASE, table_name, column_name))
-            return cursor.fetchone()[0] > 0
-        
-        # 確保 users 表有 password 欄位
-        if not column_exists('users', 'password'):
-            logger.info("偵測到 users 表缺少 password 欄位，正在新增...")
-            cursor.execute("ALTER TABLE users ADD COLUMN password VARCHAR(255) NOT NULL DEFAULT ''")
-            logger.info("✅ password 欄位已新增")
-        
-        # 確保 users 表有 email 欄位
-        if not column_exists('users', 'email'):
-            logger.info("偵測到 users 表缺少 email 欄位，正在新增...")
-            cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(128) DEFAULT NULL")
-            logger.info("✅ email 欄位已新增")
-        
-        # 確保 users 表有 role 欄位
-        if not column_exists('users', 'role'):
-            logger.info("偵測到 users 表缺少 role 欄位，正在新增...")
-            cursor.execute("ALTER TABLE users ADD COLUMN role ENUM('user', 'admin') DEFAULT 'user'")
-            logger.info("✅ role 欄位已新增")
-        
-        # 確保 users 表有 planId 欄位
-        if not column_exists('users', 'planId'):
-            logger.info("偵測到 users 表缺少 planId 欄位，正在新增...")
-            cursor.execute("ALTER TABLE users ADD COLUMN planId INT DEFAULT NULL")
-            logger.info("✅ planId 欄位已新增")
-        
-        # 確保 users 表有 isActive 欄位
-        if not column_exists('users', 'isActive'):
-            logger.info("偵測到 users 表缺少 isActive 欄位，正在新增...")
-            cursor.execute("ALTER TABLE users ADD COLUMN isActive BOOLEAN DEFAULT TRUE")
-            logger.info("✅ isActive 欄位已新增")
-        
-        # 確保 scheduled_posts 表有 imageUrl 欄位
-        if not column_exists('scheduled_posts', 'imageUrl'):
-            logger.info("偵測到 scheduled_posts 表缺少 imageUrl 欄位，正在新增...")
-            cursor.execute("ALTER TABLE scheduled_posts ADD COLUMN imageUrl TEXT DEFAULT NULL")
-            logger.info("✅ scheduled_posts.imageUrl 欄位已新增")
-        
-        # 確保 posts 表有 imageUrl 欄位
-        if not column_exists('posts', 'imageUrl'):
-            logger.info("偵測到 posts 表缺少 imageUrl 欄位，正在新增...")
-            cursor.execute("ALTER TABLE posts ADD COLUMN imageUrl TEXT DEFAULT NULL")
-            logger.info("✅ posts.imageUrl 欄位已新增")
+            <!-- 4. 排程與歷史 (含進度表) -->
+            <section id="section-schedule" class="hidden max-w-5xl mx-auto space-y-6">
+                <!-- 任務進度表 -->
+                <div class="grid grid-cols-3 gap-4 mb-2">
+                    <div class="bg-card border border-border p-4 rounded-lg shadow-elegant text-center">
+                        <div class="text-muted-foreground text-xs md:text-sm mb-1">待發布</div>
+                        <div id="statPending" class="text-2xl md:text-3xl font-bold text-[#f59e0b]">0</div>
+                    </div>
+                    <div class="bg-card border border-border p-4 rounded-lg shadow-elegant text-center">
+                        <div class="text-muted-foreground text-xs md:text-sm mb-1">已成功</div>
+                        <div id="statSuccess" class="text-2xl md:text-3xl font-bold text-[#10b981]">0</div>
+                    </div>
+                    <div class="bg-card border border-border p-4 rounded-lg shadow-elegant text-center">
+                        <div class="text-muted-foreground text-xs md:text-sm mb-1">已失敗</div>
+                        <div id="statFailed" class="text-2xl md:text-3xl font-bold text-destructive">0</div>
+                    </div>
+                </div>
 
-        # --- 預設資料寫入與強制修復 ---
-        
-        # 1. 確保有預設管理員與計費設定
-        cursor.execute("SELECT COUNT(*) FROM users")
-        if cursor.fetchone()[0] == 0:
-            admin_hash = hash_password('admin123')
-            user_hash = hash_password('test123')
-            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'admin'), (%s, %s, 'user')", 
-                          ('Admin', admin_hash, 'TestUser', user_hash))
-        else:
-            cursor.execute("SELECT id, username, role FROM users WHERE password = '' OR password IS NULL")
-            users_without_password = cursor.fetchall()
-            if users_without_password:
-                logger.info(f"偵測到 {len(users_without_password)} 個用戶沒有密碼，正在設定預設密碼...")
-                for user_id, username, role in users_without_password:
-                    default_hash = hash_password('admin123')
-                    cursor.execute("UPDATE users SET password = %s WHERE id = %s", (default_hash, user_id))
-        
-        cursor.execute("SELECT COUNT(*) FROM billing_settings")
-        if cursor.fetchone()[0] == 0:
-            cursor.execute("INSERT INTO billing_settings (pricePerPost, freeQuota) VALUES (0.5, 100)")
-        
-        # 2. 確保有預設訂閱方案
-        cursor.execute("SELECT COUNT(*) FROM subscription_plans")
-        if cursor.fetchone()[0] == 0:
-            default_plans = [
-                ('免費方案', '基本免費方案，適合初次使用', 0, 100, 10, '["基本發文", "帳號管理"]'),
-                ('標準方案', '適合個人創作者使用', 9.99, 500, 50, '["基本發文", "帳號管理", "AI文案生成", "排程發文"]'),
-                ('專業方案', '適合企業與專業用戶', 29.99, 2000, 200, '["基本發文", "帳號管理", "AI文案生成", "排程發文", "進階數據分析", "優先客服"]'),
-                ('企業方案', '無限制使用，適合大型企業', 99.99, -1, -1, '["無限發文", "帳號管理", "AI文案生成", "排程發文", "進階數據分析", "專屬客服", "API存取"]')
-            ]
-            cursor.executemany(
-                "INSERT INTO subscription_plans (planName, description, priceUsdt, monthlyPostLimit, aiGenerationLimit, features) VALUES (%s, %s, %s, %s, %s, %s)",
-                default_plans
-            )
-        
-        # 3. 確保有預設USDT設定
-        cursor.execute("SELECT COUNT(*) FROM usdt_settings")
-        if cursor.fetchone()[0] == 0:
-            cursor.execute("INSERT INTO usdt_settings (walletAddress, networkType, minPaymentAmount) VALUES ('TRX_WALLET_ADDRESS_HERE', 'TRC20', 10.00)")
+                <div class="rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
+                    <div class="bg-secondary/20 px-5 py-4 border-b border-border flex justify-between items-center">
+                        <h3 class="font-medium text-primary"><i class="fa-solid fa-clock mr-2"></i>待發布排程</h3>
+                        <button onclick="loadDashboardData()" class="text-xs text-muted-foreground hover:text-foreground"><i class="fa-solid fa-rotate-right"></i> 刷新</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left whitespace-nowrap md:whitespace-normal">
+                            <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
+                                <tr><th class="px-5 py-3">時間</th><th class="px-5 py-3">帳號</th><th class="px-5 py-3 min-w-[200px]">內容</th><th class="px-5 py-3">操作</th></tr>
+                            </thead>
+                            <tbody id="scheduleTable" class="divide-y divide-border"></tbody>
+                        </table>
+                    </div>
+                </div>
 
-        # 4. 【強制修復文案庫】
-        cursor.execute("SELECT COUNT(*) FROM trending_templates")
-        template_count = cursor.fetchone()[0]
-        if template_count < 12:
-            logger.info("檢測到文案庫資料不完整，正在執行強制重置與寫入...")
-            templates = [
-                ("早安勵志", "早安！今天也是充滿希望的一天，持續往目標前進吧！✨", "勵志"),
-                ("晚安語錄", "辛苦了一天，好好休息，明天我們繼續閃耀。🌙", "勵志"),
-                ("突破自我", "不要害怕失敗，每一次跌倒都是為了跳得更高！💪", "勵志"),
-                ("美食分享", "今天解鎖了這家超讚的餐廳！這個味道真的讓人難以忘懷 🤤🍲", "美食"),
-                ("咖啡日常", "用一杯拿鐵開啟美好的一天 ☕️ 大家的早晨都需要一點咖啡因！", "美食"),
-                ("深夜食堂", "宵夜時間到！這碗泡麵加蛋簡直是人間美味 🍜🔥", "美食"),
-                ("旅行風景", "暫時逃離城市的喧囂，這裡的風景真的太美了 ⛰️✈️", "旅行"),
-                ("週末出遊", "週末就是要出門走走！大家這個週末有什麼計畫呢？🚗", "旅行"),
-                ("說走就走", "機票買了就出發！有時候旅行就是需要一股衝動 🎫🌍", "旅行"),
-                ("AI 趨勢", "AI 發展真的太快了，未來的科技趨勢讓人期待又敬畏 🤖🚀", "科技"),
-                ("程式日常", "解完了一個大 Bug！身為工程師的小確幸 💻🎉", "科技"),
-                ("搞笑廢文", "我不是在上班，我是在為我的退休生活籌備資金 💸😂", "搞笑")
-            ]
-            cursor.executemany("INSERT IGNORE INTO trending_templates (title, content, category) VALUES (%s, %s, %s)", templates)
-            logger.info("✅ 熱門文案模板已載入！")
+                <div class="rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
+                    <div class="bg-secondary/20 px-5 py-4 border-b border-border">
+                        <h3 class="font-medium"><i class="fa-solid fa-check-double mr-2 text-muted-foreground"></i>發文歷史記錄</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left whitespace-nowrap md:whitespace-normal">
+                            <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
+                                <tr><th class="px-5 py-3">發布時間</th><th class="px-5 py-3">帳號</th><th class="px-5 py-3 min-w-[200px]">內容</th><th class="px-5 py-3">結果</th></tr>
+                            </thead>
+                            <tbody id="historyTable" class="divide-y divide-border"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. 【解鎖】計費與系統管理 -->
+            <section id="section-admin" class="hidden max-w-5xl mx-auto space-y-6">
+                <!-- 管理員登入區塊 -->
+                <div id="adminLoginSection" class="max-w-md mx-auto">
+                    <div class="rounded-lg bg-card border border-border p-6 shadow-elegant">
+                        <h3 class="text-lg font-medium text-foreground mb-4 text-center"><i class="fa-solid fa-lock mr-2 text-primary"></i>管理員登入</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs text-muted-foreground block mb-1">管理員帳號</label>
+                                <input type="text" id="adminUsername" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="請輸入帳號">
+                            </div>
+                            <div>
+                                <label class="text-xs text-muted-foreground block mb-1">密碼</label>
+                                <input type="password" id="adminPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="請輸入密碼">
+                            </div>
+                            <button onclick="adminLogin()" class="w-full py-2 text-sm font-medium bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-sign-in-alt mr-1"></i> 登入</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 管理員主介面 -->
+                <div id="adminMainSection" class="hidden">
+                    <div class="flex flex-wrap gap-2 mb-6 bg-card border border-border rounded-lg p-2">
+                        <button onclick="switchAdminTab('billing')" id="adminTab-billing" class="admin-tab-btn px-4 py-2 text-sm rounded-md bg-primary text-white">計費概況</button>
+                        <button onclick="switchAdminTab('users')" id="adminTab-users" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">會員管理</button>
+                        <button onclick="switchAdminTab('plans')" id="adminTab-plans" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">訂閱方案</button>
+                        <button onclick="switchAdminTab('templates')" id="adminTab-templates" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">文案管理</button>
+                        <button onclick="switchAdminTab('usdt')" id="adminTab-usdt" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">USDT設定</button>
+                        <button onclick="switchAdminTab('payments')" id="adminTab-payments" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">付款記錄</button>
+                        <button onclick="adminLogout()" class="ml-auto px-4 py-2 text-sm rounded-md text-destructive border border-destructive/20 hover:bg-destructive/10">登出</button>
+                    </div>
+
+                    <!-- 各子區塊保留原樣，未刪減 -->
+                    <div id="adminSection-billing">
+                        <h3 class="text-lg font-medium text-foreground mb-4"><i class="fa-solid fa-wallet mr-2 text-primary"></i>我的計費概況</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div class="rounded-lg bg-card border border-border p-6 shadow-elegant text-center">
+                                <div class="text-muted-foreground text-sm mb-2">本月已發文次數</div>
+                                <div id="usageCount" class="text-4xl font-bold text-primary">0</div>
+                                <div id="freeQuotaText" class="text-xs text-muted-foreground mt-2">每月免費額度: -- 篇</div>
+                            </div>
+                            <div class="rounded-lg bg-card border border-border p-6 shadow-elegant text-center">
+                                <div class="text-muted-foreground text-sm mb-2">本月產生費用 (TWD)</div>
+                                <div id="usageCost" class="text-4xl font-bold text-foreground">0.0</div>
+                                <div id="pricePerPostText" class="text-xs text-muted-foreground mt-2">每篇超額發文: $--</div>
+                            </div>
+                            <div class="rounded-lg bg-card border border-border p-6 shadow-elegant text-center flex flex-col justify-center">
+                                <button class="w-full py-2 bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary/20 transition-colors mb-2"><i class="fa-solid fa-credit-card mr-2"></i>信用卡綁定</button>
+                                <button class="w-full py-2 bg-secondary text-foreground rounded hover:opacity-80 transition-colors"><i class="fa-solid fa-file-invoice mr-2"></i>檢視歷史帳單</button>
+                            </div>
+                        </div>
+                        
+                        <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
+                            <h4 class="font-medium mb-4 text-sm text-muted-foreground">全域計費設定</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">每篇超額計費 (TWD)</label>
+                                    <input type="number" step="0.1" id="adminPrice" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">每月免費發文額度</label>
+                                    <input type="number" id="adminQuota" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                                </div>
+                                <div class="flex items-end">
+                                    <button onclick="updateAdminSettings()" class="w-full py-2 text-sm font-medium bg-destructive text-white rounded-md hover:opacity-90 transition-opacity"><i class="fa-solid fa-save mr-1"></i> 套用全域設定</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="adminSection-users" class="hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-users mr-2 text-primary"></i>會員管理</h3>
+                            <button onclick="showAddUserModal()" class="px-4 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-plus mr-1"></i>新增會員</button>
+                        </div>
+                        
+                        <div class="rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
+                            <div class="bg-secondary/20 px-5 py-3 border-b border-border flex justify-between">
+                                <h4 class="font-medium text-sm text-muted-foreground">使用者列表</h4>
+                                <button onclick="loadAllUsers()" class="text-xs text-muted-foreground hover:text-foreground"><i class="fa-solid fa-rotate-right"></i></button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left whitespace-nowrap">
+                                    <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
+                                        <tr>
+                                            <th class="px-5 py-3">ID</th><th class="px-5 py-3">帳號</th><th class="px-5 py-3">Email</th>
+                                            <th class="px-5 py-3">角色</th><th class="px-5 py-3">訂閱方案</th><th class="px-5 py-3">本月用量</th>
+                                            <th class="px-5 py-3">狀態</th><th class="px-5 py-3">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminUsersTable" class="divide-y divide-border"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="adminSection-plans" class="hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-tags mr-2 text-primary"></i>訂閱方案管理</h3>
+                            <button onclick="showAddPlanModal()" class="px-4 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-plus mr-1"></i>新增方案</button>
+                        </div>
+                        <div id="plansGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+                    </div>
+
+                    <!-- 新增文案管理區塊 -->
+                    <div id="adminSection-templates" class="hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-fire mr-2 text-primary"></i>文案管理</h3>
+                            <button onclick="showAddTemplateModal()" class="px-4 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-plus mr-1"></i>新增文案</button>
+                        </div>
+                        <div class="rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left whitespace-nowrap md:whitespace-normal">
+                                    <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
+                                        <tr>
+                                            <th class="px-5 py-3">ID</th><th class="px-5 py-3">標題</th><th class="px-5 py-3">分類</th>
+                                            <th class="px-5 py-3 min-w-[200px]">內容預覽</th><th class="px-5 py-3">使用次數</th><th class="px-5 py-3">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminTemplatesTable" class="divide-y divide-border"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="adminSection-usdt" class="hidden">
+                        <h3 class="text-lg font-medium text-foreground mb-4"><i class="fa-brands fa-bitcoin mr-2 text-primary"></i>USDT 付款設定</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
+                                <h4 class="font-medium mb-4 text-sm text-muted-foreground">收款錢包設定</h4>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="text-xs text-muted-foreground block mb-1">USDT 收款地址</label>
+                                        <input type="text" id="usdtWalletAddress" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono" placeholder="TRX...">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-muted-foreground block mb-1">網路類型</label>
+                                        <select id="usdtNetworkType" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                                            <option value="TRC20">TRC20 (TRON)</option><option value="ERC20">ERC20 (Ethereum)</option><option value="BEP20">BEP20 (BSC)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-muted-foreground block mb-1">最低付款金額 (USDT)</label>
+                                        <input type="number" step="0.01" id="usdtMinAmount" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="10.00">
+                                    </div>
+                                    <button onclick="saveUsdtSettings()" class="w-full py-2 text-sm font-medium bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-save mr-1"></i> 儲存設定</button>
+                                </div>
+                            </div>
+                            <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
+                                <h4 class="font-medium mb-4 text-sm text-muted-foreground">付款說明</h4>
+                                <div class="space-y-3 text-sm text-muted-foreground">
+                                    <p><i class="fa-solid fa-circle-info mr-2 text-primary"></i>用戶訂閱付費方案時，系統會顯示此收款地址</p>
+                                    <p><i class="fa-solid fa-circle-info mr-2 text-primary"></i>用戶完成付款後，管理員需在「付款記錄」中確認交易</p>
+                                    <p><i class="fa-solid fa-circle-info mr-2 text-primary"></i>建議使用 TRC20 網路，手續費較低</p>
+                                    <p><i class="fa-solid fa-triangle-exclamation mr-2 text-destructive"></i>請確保地址正確，錯誤地址將導致資金遺失</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="adminSection-payments" class="hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-receipt mr-2 text-primary"></i>付款記錄</h3>
+                            <button onclick="loadPaymentRecords()" class="text-xs text-muted-foreground hover:text-foreground"><i class="fa-solid fa-rotate-right mr-1"></i>刷新</button>
+                        </div>
+                        
+                        <div class="rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left whitespace-nowrap">
+                                    <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
+                                        <tr>
+                                            <th class="px-5 py-3">ID</th><th class="px-5 py-3">用戶</th><th class="px-5 py-3">方案</th>
+                                            <th class="px-5 py-3">金額(USDT)</th><th class="px-5 py-3">交易Hash</th><th class="px-5 py-3">狀態</th>
+                                            <th class="px-5 py-3">建立時間</th><th class="px-5 py-3">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="paymentRecordsTable" class="divide-y divide-border"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- === 強制修改密碼 Modal === -->
+    <div id="forcePasswordModal" class="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center hidden">
+        <div class="bg-card border border-destructive/50 rounded-lg p-6 w-full max-w-sm mx-4 shadow-[0_0_30px_rgba(255,50,50,0.15)]">
+            <h3 class="text-lg font-bold mb-2 text-destructive flex items-center"><i class="fa-solid fa-shield-halved mr-2"></i>安全提示：請修改密碼</h3>
+            <p class="text-xs text-muted-foreground mb-5">系統偵測到您正在使用預設密碼 (123456 或 admin123) 登入，為確保系統安全，請立即設定新密碼才能繼續使用。</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-medium text-foreground block mb-1">新密碼</label>
+                    <input type="password" id="forceNewPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="text-xs font-medium text-foreground block mb-1">再次輸入新密碼</label>
+                    <input type="password" id="forceConfirmPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                </div>
+                <button onclick="submitForcePassword()" class="w-full py-2.5 mt-2 text-sm font-bold bg-primary text-white rounded-md hover:opacity-90 transition-opacity">確認修改並進入後台</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- === 新增文案 Modal === -->
+    <div id="addTemplateModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-elegant">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium"><i class="fa-solid fa-fire mr-2 text-primary"></i>新增熱門文案</h3>
+                <button onclick="closeAddTemplateModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-muted-foreground block mb-1">文案標題 *</label>
+                    <input type="text" id="newTemplateTitle" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="例如: 爆款咖啡推廣">
+                </div>
+                <div>
+                    <label class="text-xs text-muted-foreground block mb-1">分類 *</label>
+                    <select id="newTemplateCategory" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                        <option value="勵志">勵志</option><option value="美食">美食</option><option value="旅行">旅行</option><option value="科技">科技</option><option value="搞笑">搞笑</option><option value="其他">其他</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-muted-foreground block mb-1">文案內容 *</label>
+                    <textarea id="newTemplateContent" rows="4" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none" placeholder="輸入文案詳細內容..."></textarea>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeAddTemplateModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
+                    <button onclick="createNewTemplate()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">儲存文案</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 所有的 Modals 隱藏區 (User, Plan, Payment...) 保持不變，直接從原本程式碼沿用即可 -->
+    <!-- 新增會員 Modal -->
+    <div id="addUserModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-elegant">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium"><i class="fa-solid fa-user-plus mr-2 text-primary"></i>新增會員</h3>
+                <button onclick="closeAddUserModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div><label class="text-xs text-muted-foreground block mb-1">帳號 *</label><input type="text" id="newUserUsername" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">密碼 *</label><input type="password" id="newUserPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">Email</label><input type="email" id="newUserEmail" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">角色</label><select id="newUserRole" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"><option value="user">一般會員</option><option value="admin">管理員</option></select></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">訂閱方案</label><select id="newUserPlan" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"><option value="">不指定方案</option></select></div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeAddUserModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
+                    <button onclick="createNewUser()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">確認新增</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 編輯會員 Modal -->
+    <div id="editUserModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-elegant">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium"><i class="fa-solid fa-user-edit mr-2 text-primary"></i>編輯會員</h3>
+                <button onclick="closeEditUserModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="editUserId">
+            <div class="space-y-4">
+                <div><label class="text-xs text-muted-foreground block mb-1">帳號</label><input type="text" id="editUserUsername" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">新密碼 (留空不改)</label><input type="password" id="editUserPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">Email</label><input type="email" id="editUserEmail" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">角色</label><select id="editUserRole" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"><option value="user">一般會員</option><option value="admin">管理員</option></select></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">訂閱方案</label><select id="editUserPlan" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"><option value="">不指定方案</option></select></div>
+                <div class="flex items-center gap-2"><input type="checkbox" id="editUserActive" class="accent-primary"><label class="text-sm text-muted-foreground">啟用帳號</label></div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeEditUserModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
+                    <button onclick="saveUserEdit()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">儲存變更</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 新增方案 Modal -->
+    <div id="addPlanModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-card border border-border rounded-lg p-6 w-full max-w-lg mx-4 shadow-elegant">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium"><i class="fa-solid fa-tags mr-2 text-primary"></i>新增訂閱方案</h3>
+                <button onclick="closeAddPlanModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs text-muted-foreground block mb-1">方案名稱 *</label><input type="text" id="newPlanName" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">價格 (USDT) *</label><input type="number" step="0.01" id="newPlanPrice" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">方案描述</label><textarea id="newPlanDesc" rows="2" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none"></textarea></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs text-muted-foreground block mb-1">發文上限</label><input type="number" id="newPlanPostLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" value="100"></div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">AI生成上限</label><input type="number" id="newPlanAiLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" value="50"></div>
+                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">方案功能 (逗號分隔)</label><input type="text" id="newPlanFeatures" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeAddPlanModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
+                    <button onclick="createNewPlan()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">確認新增</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 編輯方案 Modal -->
+    <div id="editPlanModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-card border border-border rounded-lg p-6 w-full max-w-lg mx-4 shadow-elegant">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium"><i class="fa-solid fa-edit mr-2 text-primary"></i>編輯訂閱方案</h3>
+                <button onclick="closeEditPlanModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="editPlanId">
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs text-muted-foreground block mb-1">方案名稱</label><input type="text" id="editPlanName" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">價格 (USDT)</label><input type="number" step="0.01" id="editPlanPrice" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">方案描述</label><textarea id="editPlanDesc" rows="2" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none"></textarea></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs text-muted-foreground block mb-1">發文上限</label><input type="number" id="editPlanPostLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">AI生成上限</label><input type="number" id="editPlanAiLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">方案功能 (逗號分隔)</label><input type="text" id="editPlanFeatures" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div class="flex items-center gap-2"><input type="checkbox" id="editPlanActive" class="accent-primary"><label class="text-sm text-muted-foreground">啟用方案</label></div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeEditPlanModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
+                    <button onclick="savePlanEdit()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">儲存變更</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 確認付款 Modal -->
+    <div id="confirmPaymentModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-elegant">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium"><i class="fa-solid fa-check-circle mr-2 text-primary"></i>確認付款</h3>
+                <button onclick="closeConfirmPaymentModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="confirmPaymentId">
+            <div class="space-y-4">
+                <div><label class="text-xs text-muted-foreground block mb-1">交易 Hash</label><input type="text" id="confirmTxHash" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"></div>
+                <p class="text-xs text-muted-foreground">確認付款後，系統將自動為該用戶啟用對應的訂閱方案。</p>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeConfirmPaymentModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
+                    <button onclick="confirmPayment()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">確認付款</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUploadedImageUrl = '';
+        let allTemplates = [];
+        let allPlans = [];
+        let isAdminLoggedIn = false;
+        let currentAdminUser = null;
+        
+        const sections = ['compose', 'accounts', 'templates', 'schedule', 'admin'];
+        const titles = {'compose': '發文編輯器', 'accounts': '帳號管理', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'admin': '計費與系統管理'};
+        const adminSections = ['billing', 'users', 'plans', 'templates', 'usdt', 'payments']; // 新增 templates
+        
+        // XSS 防護: HTML 實體編碼
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+        
+        function switchTab(tabId) {
+            sections.forEach(id => {
+                document.getElementById(`section-${id}`).classList.add('hidden');
+                document.getElementById(`tab-desktop-${id}`).className = 'tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors';
+                document.getElementById(`tab-mobile-${id}`).className = 'tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground transition-colors';
+            });
+            document.getElementById(`section-${tabId}`).classList.remove('hidden');
+            document.getElementById('pageTitle').innerText = titles[tabId];
+            document.getElementById(`tab-desktop-${tabId}`).className = 'tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded-md bg-secondary text-foreground transition-colors';
+            document.getElementById(`tab-mobile-${tabId}`).className = 'tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary transition-colors';
             
-        db.commit()
-        logger.info("✅ 資料庫初始化完成")
-    except Exception as e:
-        logger.error(f"❌ 初始化資料庫失敗: {e}")
-        if db:
-            try:
-                db.rollback()
-            except Exception as re:
-                logger.debug(f"rollback 失敗: {re}")
-    finally:
-        if cursor: cursor.close()
-        if db and db.is_connected(): db.close()
-
-# ==========================================
-# 網頁與 API 路由設定
-# ==========================================
-
-@app.route('/')
-def index():
-    """強制每次讀取最新 index.html，徹底阻斷快取"""
-    try:
-        # 直接從硬碟讀取檔案內容
-        with open(INDEX_FILE, 'r', encoding='utf-8') as f:
-            content = f.read()
+            if(tabId !== 'compose') loadDashboardData();
+            if(tabId === 'admin') {
+                checkAdminSession();
+            }
+        }
         
-        response = make_response(content)
-        response.headers['Content-Type'] = 'text/html; charset=utf-8'
-        
-        # 設定極端嚴格的無快取標頭 (No-Store)
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '-1'
-        return response
-    except FileNotFoundError:
-        return make_response("找不到 index.html 檔案，請確認檔案是否已上傳至正確位置。", 404)
-
-@app.route('/api/dashboard', methods=['GET'])
-def get_dashboard_data():
-    db = None
-    cursor = None
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        
-        cursor.execute("SELECT id, accountName, isActive FROM threads_accounts")
-        accounts = cursor.fetchall()
-        
-        cursor.execute("SELECT id, title, content, category, usageCount FROM trending_templates ORDER BY id ASC")
-        templates = cursor.fetchall()
-        
-        cursor.execute("""
-            SELECT sp.id, sp.content, sp.imageUrl, sp.scheduledAt, sp.status, ta.accountName 
-            FROM scheduled_posts sp LEFT JOIN threads_accounts ta ON sp.accountId = ta.id
-            WHERE sp.status = 'pending' ORDER BY sp.scheduledAt ASC LIMIT 50
-        """)
-        schedules = cursor.fetchall()
-        
-        cursor.execute("""
-            SELECT p.id, p.content, p.status, p.publishedAt, p.errorMessage, ta.accountName 
-            FROM posts p LEFT JOIN threads_accounts ta ON p.accountId = ta.id
-            ORDER BY p.publishedAt DESC LIMIT 50
-        """)
-        history = cursor.fetchall()
-
-        cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
-        billing = cursor.fetchone() or {"pricePerPost": 0.5, "freeQuota": 100}
-        
-        current_month = datetime.now().strftime('%Y-%m')
-        cursor.execute("SELECT postCount, totalCost FROM user_usage WHERE month = %s AND userId = 1", (current_month,))
-        usage = cursor.fetchone() or {"postCount": 0, "totalCost": 0}
-        
-        return jsonify({
-            "accounts": accounts, "templates": templates, "schedules": schedules,
-            "history": history, "billing": billing, "usage": usage
-        }), 200
-    except Exception as e:
-        logger.error(f"Dashboard API Error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-# -------- 管理員與其他 API 保留原樣 --------
-@app.route('/api/admin/dashboard', methods=['GET'])
-def get_admin_data():
-    db = None
-    cursor = None
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT id, username, role, createdAt FROM users")
-        users = cursor.fetchall()
-        current_month = datetime.now().strftime('%Y-%m')
-        for u in users:
-            cursor.execute("SELECT postCount FROM user_usage WHERE userId = %s AND month = %s", (u['id'], current_month))
-            row = cursor.fetchone()
-            u['currentUsage'] = row['postCount'] if row else 0
-        return jsonify({"users": users}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/settings', methods=['POST'])
-def update_billing_settings():
-    data = request.json
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("UPDATE billing_settings SET pricePerPost = %s, freeQuota = %s", (data.get('pricePerPost'), data.get('freeQuota')))
-        db.commit()
-        return jsonify({"message": "計費設定已更新！"}), 200
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/login', methods=['POST'])
-def admin_login():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    if not username or not password:
-        return jsonify({"success": False, "message": "請輸入帳號密碼"}), 400
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT id, username, password, role FROM users WHERE username = %s AND role = 'admin'", (username,))
-        user = cursor.fetchone()
-        if user and verify_password(password, user['password']):
-            return jsonify({
-                "success": True, 
-                "message": "登入成功", 
-                "user": {"id": user['id'], "username": user['username'], "role": user['role']}
-            }), 200
-        return jsonify({"success": False, "message": "帳號或密碼錯誤"}), 401
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/users', methods=['GET'])
-def get_all_users():
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT u.id, u.username, u.email, u.role, u.planId, u.isActive, u.createdAt,
-                   sp.planName 
-            FROM users u 
-            LEFT JOIN subscription_plans sp ON u.planId = sp.id
-            ORDER BY u.id ASC
-        """)
-        users = cursor.fetchall()
-        current_month = datetime.now().strftime('%Y-%m')
-        for u in users:
-            cursor.execute("SELECT postCount, totalCost FROM user_usage WHERE userId = %s AND month = %s", (u['id'], current_month))
-            row = cursor.fetchone()
-            u['currentUsage'] = row['postCount'] if row else 0
-            u['totalCost'] = float(row['totalCost']) if row else 0
-            cursor.execute("SELECT permission FROM user_permissions WHERE userId = %s", (u['id'],))
-            u['permissions'] = [p['permission'] for p in cursor.fetchall()]
-        return jsonify({"users": users}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/users', methods=['POST'])
-def create_user():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    email = data.get('email', '')
-    role = data.get('role', 'user')
-    planId = data.get('planId')
-    if not username or not password:
-        return jsonify({"success": False, "message": "帳號密碼為必填"}), 400
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        hashed_password = hash_password(password)
-        cursor.execute(
-            "INSERT INTO users (username, password, email, role, planId) VALUES (%s, %s, %s, %s, %s)",
-            (username, hashed_password, email, role, planId)
-        )
-        db.commit()
-        return jsonify({"success": True, "message": "使用者新增成功", "userId": cursor.lastrowid}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
-def update_user(user_id):
-    data = request.json
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        updates, values = [], []
-        if 'username' in data:
-            updates.append("username = %s"); values.append(data['username'])
-        if 'password' in data and data['password']:
-            updates.append("password = %s"); values.append(hash_password(data['password']))
-        if 'email' in data:
-            updates.append("email = %s"); values.append(data['email'])
-        if 'role' in data:
-            updates.append("role = %s"); values.append(data['role'])
-        if 'planId' in data:
-            updates.append("planId = %s"); values.append(data['planId'])
-        if 'isActive' in data:
-            updates.append("isActive = %s"); values.append(data['isActive'])
-        
-        if updates:
-            values.append(user_id)
-            cursor.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = %s", values)
-            db.commit()
-        return jsonify({"success": True, "message": "使用者資料已更新"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
-def delete_user(user_id):
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("DELETE FROM user_permissions WHERE userId = %s", (user_id,))
-        cursor.execute("DELETE FROM user_usage WHERE userId = %s", (user_id,))
-        cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
-        db.commit()
-        return jsonify({"success": True, "message": "使用者已刪除"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/permissions/<int:user_id>', methods=['GET'])
-def get_user_permissions(user_id):
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT permission, createdAt FROM user_permissions WHERE userId = %s", (user_id,))
-        permissions = cursor.fetchall()
-        return jsonify({"permissions": permissions}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/permissions/<int:user_id>', methods=['POST'])
-def grant_permission(user_id):
-    data = request.json
-    permission = data.get('permission')
-    granted_by = data.get('grantedBy', 1)
-    if not permission:
-        return jsonify({"success": False, "message": "權限名稱為必填"}), 400
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("INSERT IGNORE INTO user_permissions (userId, permission, grantedBy) VALUES (%s, %s, %s)", (user_id, permission, granted_by))
-        db.commit()
-        return jsonify({"success": True, "message": "權限已授予"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/permissions/<int:user_id>/<permission>', methods=['DELETE'])
-def revoke_permission(user_id, permission):
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("DELETE FROM user_permissions WHERE userId = %s AND permission = %s", (user_id, permission))
-        db.commit()
-        return jsonify({"success": True, "message": "權限已撤銷"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/plans', methods=['GET'])
-def get_subscription_plans():
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM subscription_plans ORDER BY priceUsdt ASC")
-        plans = cursor.fetchall()
-        return jsonify({"plans": plans}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/plans', methods=['POST'])
-def create_plan():
-    data = request.json
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        features = json.dumps(data.get('features', [])) if isinstance(data.get('features'), list) else data.get('features', '[]')
-        cursor.execute("""
-            INSERT INTO subscription_plans (planName, description, priceUsdt, monthlyPostLimit, aiGenerationLimit, features, isActive)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (
-            data.get('planName'), data.get('description', ''), data.get('priceUsdt', 0),
-            data.get('monthlyPostLimit', 100), data.get('aiGenerationLimit', 50), features, data.get('isActive', True)
-        ))
-        db.commit()
-        return jsonify({"success": True, "message": "方案新增成功", "planId": cursor.lastrowid}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/plans/<int:plan_id>', methods=['PUT'])
-def update_plan(plan_id):
-    data = request.json
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        features = json.dumps(data.get('features', [])) if isinstance(data.get('features'), list) else data.get('features')
-        cursor.execute("""
-            UPDATE subscription_plans 
-            SET planName = %s, description = %s, priceUsdt = %s, monthlyPostLimit = %s, 
-                aiGenerationLimit = %s, features = %s, isActive = %s
-            WHERE id = %s
-        """, (
-            data.get('planName'), data.get('description'), data.get('priceUsdt'),
-            data.get('monthlyPostLimit'), data.get('aiGenerationLimit'), features,
-            data.get('isActive', True), plan_id
-        ))
-        db.commit()
-        return jsonify({"success": True, "message": "方案已更新"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/plans/<int:plan_id>', methods=['DELETE'])
-def delete_plan(plan_id):
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("DELETE FROM subscription_plans WHERE id = %s", (plan_id,))
-        db.commit()
-        return jsonify({"success": True, "message": "方案已刪除"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/usdt-settings', methods=['GET'])
-def get_usdt_settings():
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM usdt_settings LIMIT 1")
-        settings = cursor.fetchone() or {"walletAddress": "", "networkType": "TRC20", "minPaymentAmount": 10.00}
-        return jsonify({"settings": settings}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/usdt-settings', methods=['POST'])
-def update_usdt_settings():
-    data = request.json
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("SELECT COUNT(*) FROM usdt_settings")
-        count = cursor.fetchone()[0]
-        if count == 0:
-            cursor.execute("""
-                INSERT INTO usdt_settings (walletAddress, networkType, minPaymentAmount, isActive)
-                VALUES (%s, %s, %s, %s)
-            """, (data.get('walletAddress'), data.get('networkType', 'TRC20'), data.get('minPaymentAmount', 10.00), data.get('isActive', True)))
-        else:
-            cursor.execute("""
-                UPDATE usdt_settings 
-                SET walletAddress = %s, networkType = %s, minPaymentAmount = %s, isActive = %s
-                WHERE id = 1
-            """, (data.get('walletAddress'), data.get('networkType', 'TRC20'), data.get('minPaymentAmount', 10.00), data.get('isActive', True)))
-        db.commit()
-        return jsonify({"success": True, "message": "USDT設定已更新"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/payments', methods=['GET'])
-def get_payment_records():
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT pr.*, u.username, sp.planName
-            FROM payment_records pr
-            LEFT JOIN users u ON pr.userId = u.id
-            LEFT JOIN subscription_plans sp ON pr.planId = sp.id
-            ORDER BY pr.createdAt DESC LIMIT 100
-        """)
-        payments = cursor.fetchall()
-        return jsonify({"payments": payments}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/admin/payments/<int:payment_id>/confirm', methods=['POST'])
-def confirm_payment(payment_id):
-    data = request.json
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM payment_records WHERE id = %s", (payment_id,))
-        payment = cursor.fetchone()
-        if not payment:
-            return jsonify({"success": False, "message": "找不到付款記錄"}), 404
-        cursor.execute("""
-            UPDATE payment_records 
-            SET status = 'confirmed', txHash = %s, confirmedAt = NOW()
-            WHERE id = %s
-        """, (data.get('txHash', ''), payment_id))
-        cursor.execute("UPDATE users SET planId = %s WHERE id = %s", (payment['planId'], payment['userId']))
-        db.commit()
-        return jsonify({"success": True, "message": "付款已確認，方案已啟用"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/user/subscribe', methods=['POST'])
-def user_subscribe():
-    data = request.json
-    user_id = data.get('userId')
-    plan_id = data.get('planId')
-    if not user_id or not plan_id:
-        return jsonify({"success": False, "message": "使用者ID與方案ID為必填"}), 400
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM subscription_plans WHERE id = %s", (plan_id,))
-        plan = cursor.fetchone()
-        if not plan:
-            return jsonify({"success": False, "message": "找不到此方案"}), 404
-        if float(plan['priceUsdt']) == 0:
-            cursor.execute("UPDATE users SET planId = %s WHERE id = %s", (plan_id, user_id))
-            db.commit()
-            return jsonify({"success": True, "message": "免費方案已啟用"}), 200
-        cursor.execute("""
-            INSERT INTO payment_records (userId, planId, amountUsdt, status)
-            VALUES (%s, %s, %s, 'pending')
-        """, (user_id, plan_id, plan['priceUsdt']))
-        db.commit()
-        cursor.execute("SELECT walletAddress, networkType FROM usdt_settings WHERE isActive = TRUE LIMIT 1")
-        usdt_info = cursor.fetchone()
-        return jsonify({
-            "success": True, "message": "付款訂單已建立，請進行USDT付款", "paymentId": cursor.lastrowid,
-            "amount": float(plan['priceUsdt']),
-            "walletAddress": usdt_info['walletAddress'] if usdt_info else '',
-            "networkType": usdt_info['networkType'] if usdt_info else 'TRC20'
-        }), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if cursor: cursor.close()
-        if db: db.close()
-
-@app.route('/api/accounts', methods=['POST'])
-def add_account():
-    data = request.json
-    if not data.get('accountName') or not data.get('accessToken'): return jsonify({"message": "資料不完整"}), 400
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("INSERT INTO threads_accounts (accountName, accessToken) VALUES (%s, %s)", (data['accountName'], data['accessToken']))
-        db.commit()
-        return jsonify({"message": "帳號新增成功"}), 200
-    finally:
-        if db: db.close()
-
-@app.route('/api/accounts/<int:acc_id>', methods=['DELETE'])
-def delete_account(acc_id):
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("DELETE FROM threads_accounts WHERE id = %s", (acc_id,))
-        db.commit()
-        return jsonify({"message": "帳號已刪除"}), 200
-    finally:
-        if db: db.close()
-
-@app.route('/api/schedule', methods=['POST'])
-def save_schedule():
-    data = request.json
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        query = "INSERT INTO scheduled_posts (accountId, content, imageUrl, scheduledAt, status) VALUES (%s, %s, %s, %s, 'pending')"
-        cursor.execute(query, (data.get('accountId'), data.get('content'), data.get('imageUrl'), data.get('scheduledAt')))
-        db.commit()
-        return jsonify({"message": "排程設定成功！"}), 200
-    finally:
-        if db: db.close()
-
-@app.route('/api/schedule/<int:post_id>', methods=['DELETE'])
-def cancel_schedule(post_id):
-    try:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("UPDATE scheduled_posts SET status = 'cancelled' WHERE id = %s", (post_id,))
-        db.commit()
-        return jsonify({"message": "排程已取消"}), 200
-    finally:
-        if db: db.close()
-
-@app.route('/api/upload', methods=['POST'])
-def mock_s3_upload():
-    time.sleep(1.5)
-    return jsonify({"url": "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?q=80&w=600&auto=format&fit=crop"}), 200
-
-@app.route('/api/generate-ai', methods=['POST'])
-def generate_ai():
-    topic = request.json.get('topic', '隨機主題')
-    time.sleep(1)
-    return jsonify({"content": f"【AI智能生成】這是一段關於「{topic}」的優質 Threads 文案！不僅能吸引眼球，還能增加互動率喔！✨ #自動發文"}), 200
-
-# ==========================================
-# 背景發文機器人
-# ==========================================
-def post_to_threads(content, image_url, access_token):
-    if 'mock' in access_token.lower() or '請之後' in access_token:
-        return False, "無效的測試 Token"
-    try:
-        media_type = "IMAGE" if image_url else "TEXT"
-        create_payload = {"media_type": media_type, "text": content, "access_token": access_token}
-        if image_url: create_payload["image_url"] = image_url
+        function switchAdminTab(tabId) {
+            adminSections.forEach(id => {
+                const section = document.getElementById(`adminSection-${id}`);
+                const tab = document.getElementById(`adminTab-${id}`);
+                if(section) section.classList.add('hidden');
+                if(tab) tab.className = 'admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary';
+            });
+            const activeSection = document.getElementById(`adminSection-${tabId}`);
+            const activeTab = document.getElementById(`adminTab-${tabId}`);
+            if(activeSection) activeSection.classList.remove('hidden');
+            if(activeTab) activeTab.className = 'admin-tab-btn px-4 py-2 text-sm rounded-md bg-primary text-white';
             
-        create_response = requests.post(THREADS_API_URL, data=create_payload, timeout=15).json()
-        if 'id' not in create_response: return False, str(create_response)
-        
-        publish_payload = {"access_token": access_token}
-        publish_url = f"https://graph.threads.net/v1.0/{create_response['id']}/publish"
-        publish_response = requests.post(publish_url, data=publish_payload, timeout=15).json()
-        
-        if 'id' in publish_response: return True, publish_response['id']
-        return False, str(publish_response)
-    except Exception as e: return False, str(e)
+            // 載入對應數據
+            if(tabId === 'users') loadAllUsers();
+            if(tabId === 'plans') loadAllPlans();
+            if(tabId === 'templates') loadAdminTemplates(); // 載入文案管理
+            if(tabId === 'usdt') loadUsdtSettings();
+            if(tabId === 'payments') loadPaymentRecords();
+        }
 
-def process_posts():
-    db = None
-    cursor = None
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
-        now = datetime.now()
-        
-        cursor.execute("""
-            SELECT sp.id, sp.accountId, sp.content, sp.imageUrl, ta.accessToken 
-            FROM scheduled_posts sp JOIN threads_accounts ta ON sp.accountId = ta.id
-            WHERE sp.status = 'pending' AND sp.scheduledAt <= %s AND ta.isActive = 1
-        """, (now,))
-        posts = cursor.fetchall()
-        
-        for post in posts:
-            post_id = post['id']
-            cursor.execute("UPDATE scheduled_posts SET status = 'processing' WHERE id = %s", (post_id,))
-            db.commit()
-            
-            success, result = post_to_threads(post['content'], post['imageUrl'], post['accessToken'])
-            
-            if success:
-                logger.info(f"發文成功！Post ID: {result}")
-                cursor.execute("""
-                    INSERT INTO posts (accountId, content, imageUrl, threadsPostId, status, publishedAt)
-                    VALUES (%s, %s, %s, %s, 'published', NOW())
-                """, (post['accountId'], post['content'], post['imageUrl'], result))
+        function setDefaultTime() {
+            const now = new Date(); now.setMinutes(now.getMinutes() + 10);
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            document.getElementById('scheduleDate').value = `${year}-${month}-${day}`;
+            document.getElementById('scheduleTime').value = now.toTimeString().slice(0, 5);
+        }
+        setDefaultTime();
+
+        function showAlert(msg, isSuccess) {
+            const box = document.getElementById('globalAlert');
+            const styleClass = isSuccess ? 'bg-[#10b981]/10 border-[#10b981]/20 text-[#10b981]' : 'bg-destructive/10 border-destructive/20 text-destructive';
+            const icon = isSuccess ? 'fa-circle-check' : 'fa-triangle-exclamation';
+            box.className = `mb-6 rounded-md p-4 text-sm font-medium shadow-elegant transition-all duration-300 border ${styleClass}`;
+            box.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${msg}`;
+            box.classList.remove('hidden');
+            // 錯誤訊息停留長一點，方便截圖除錯
+            setTimeout(() => box.classList.add('hidden'), isSuccess ? 4000 : 8000);
+        }
+
+        // 核心優化：加上防快取機制與容錯處理
+        async function loadDashboardData() {
+            try {
+                // 加上隨機時間戳，徹底防止瀏覽器快取舊資料
+                const res = await fetch('/api/dashboard?_t=' + new Date().getTime());
                 
-                cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
-                billing = cursor.fetchone()
-                price = billing[0] if billing else 0.5
+                // 如果回傳非 json，代表伺服器真的掛了 (例如 nginx/502)
+                if (!res.ok && res.status !== 500) {
+                    throw new Error(`HTTP 錯誤: ${res.status}`);
+                }
                 
-                current_month = datetime.now().strftime('%Y-%m')
-                cursor.execute("""
-                    INSERT INTO user_usage (userId, month, postCount, totalCost) VALUES (1, %s, 1, 0)
-                    ON DUPLICATE KEY UPDATE 
-                    postCount = postCount + 1, 
-                    totalCost = CASE WHEN postCount >= (SELECT freeQuota FROM billing_settings LIMIT 1) THEN totalCost + %s ELSE totalCost END
-                """, (current_month, price))
+                const data = await res.json();
                 
-                cursor.execute("UPDATE scheduled_posts SET status = 'published', postId = %s WHERE id = %s", (cursor.lastrowid, post_id))
-            else:
-                logger.error(f"發文失敗: {result}")
-                cursor.execute("INSERT INTO posts (accountId, content, status, errorMessage, publishedAt) VALUES (%s, %s, 'failed', %s, NOW())", (post['accountId'], post['content'], result))
-                cursor.execute("UPDATE scheduled_posts SET status = 'failed', errorMessage = %s WHERE id = %s", (result, post_id))
-            db.commit()
-    except Exception as e:
-        logger.error(f"process_posts 執行失敗: {e}")
-    finally:
-        if cursor: cursor.close()
-        if db and db.is_connected(): db.close()
+                // 如果後端有回傳錯誤，把錯誤直接印在 UI 上，但不要讓整個畫面壞掉
+                if (data.error) {
+                    console.error("後端回報錯誤:", data.error);
+                    showAlert(`後端資料處理中或發生異常，已啟動保護機制以維持介面運作。`, false);
+                    
+                    // 賦予空陣列以防後面 map() 函式崩潰
+                    data.accounts = [];
+                    data.templates = [];
+                    data.schedules = [];
+                    data.history = [];
+                    data.usage = {postCount: 0, totalCost: 0};
+                    data.billing = {pricePerPost: 0.5, freeQuota: 100};
+                }
 
-def background_worker():
-    while True:
-        try: process_posts()
-        except: pass
-        time.sleep(CHECK_INTERVAL_SECONDS)
+                // 1. 帳號渲染
+                const accounts = Array.isArray(data.accounts) ? data.accounts : [];
+                const accHtml = accounts.map((a, i) => `
+                    <label class="flex items-center p-3 rounded-md border ${i===0?'border-primary bg-primary/5':'border-border bg-input'} cursor-pointer hover:border-primary">
+                        <input type="radio" name="accountId" value="${a.id}" ${i===0?'checked':''} class="mr-3 accent-primary">
+                        <span class="text-sm font-medium">${escapeHtml(a.accountName)}</span>
+                    </label>
+                `).join('');
+                document.getElementById('accountList').innerHTML = accHtml || '<p class="text-sm text-muted-foreground">無綁定帳號，請先至帳號管理新增。</p>';
 
-# 確保資料庫在啟動時自動檢查並修復缺失欄位
-init_db()
+                const manageAccHtml = accounts.map(a => `
+                    <div class="px-5 py-4 flex justify-between items-center hover:bg-secondary/10">
+                        <div><div class="font-medium text-sm">${escapeHtml(a.accountName)}</div><div class="text-xs text-muted-foreground mt-1">已啟用</div></div>
+                        <button onclick="deleteAccount(${a.id})" class="text-destructive hover:opacity-80 p-2"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `).join('');
+                document.getElementById('manageAccountList').innerHTML = manageAccHtml || '<div class="p-5 text-center text-sm text-muted-foreground">尚無帳號</div>';
 
-if __name__ == "__main__":
-    threading.Thread(target=background_worker, daemon=True).start()
-    app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))
+                // 2. 文案渲染
+                allTemplates = Array.isArray(data.templates) ? data.templates : [];
+                filterTemplates();
+                if(document.getElementById('adminSection-templates').classList.contains('hidden') === false) {
+                    loadAdminTemplates(); // 如果在文案管理頁面，順便刷新
+                }
+
+                // 3. 排程與歷史 (含進度表更新)
+                const schedules = Array.isArray(data.schedules) ? data.schedules : [];
+                const history = Array.isArray(data.history) ? data.history : [];
+                
+                // --- 更新進度表數字 ---
+                const publishedCount = history.filter(h => h.status === 'published').length;
+                const failedCount = history.filter(h => h.status === 'failed').length;
+                
+                if(document.getElementById('statPending')) document.getElementById('statPending').innerText = schedules.length;
+                if(document.getElementById('statSuccess')) document.getElementById('statSuccess').innerText = publishedCount;
+                if(document.getElementById('statFailed')) document.getElementById('statFailed').innerText = failedCount;
+
+                const schHtml = schedules.map(s => `
+                    <tr class="hover:bg-muted/10">
+                        <td class="px-5 py-4">${s.scheduledAt}</td>
+                        <td class="px-5 py-4 font-medium text-primary">${escapeHtml(s.accountName) || '未知'}</td>
+                        <td class="px-5 py-4 truncate max-w-[150px]">${s.imageUrl ? '<i class="fa-solid fa-image text-primary mr-1"></i>' : ''}${escapeHtml(s.content)}</td>
+                        <td class="px-5 py-4"><button onclick="cancelSchedule(${s.id})" class="text-destructive hover:opacity-80 border border-destructive/20 bg-destructive/10 px-3 py-1.5 rounded-md text-xs"><i class="fa-solid fa-xmark mr-1"></i>取消</button></td>
+                    </tr>
+                `).join('');
+                document.getElementById('scheduleTable').innerHTML = schHtml || '<tr><td colspan="4" class="px-5 py-8 text-center text-muted-foreground">沒有待發布的排程</td></tr>';
+
+                const histHtml = history.map(h => {
+                    const isSuccess = h.status === 'published';
+                    return `
+                    <tr class="hover:bg-muted/10">
+                        <td class="px-5 py-4">${h.publishedAt || '-'}</td>
+                        <td class="px-5 py-4 font-medium text-primary">${escapeHtml(h.accountName) || '未知'}</td>
+                        <td class="px-5 py-4 truncate max-w-[150px]" title="${escapeHtml(h.errorMessage||'')}">${escapeHtml(h.content)}</td>
+                        <td class="px-5 py-4"><span class="px-2.5 py-1 text-xs rounded-md border ${isSuccess?'bg-primary/10 text-primary border-primary/20':'bg-destructive/10 text-destructive border-destructive/20'}"><i class="fa-solid ${isSuccess?'fa-check':'fa-xmark'} mr-1"></i>${isSuccess?'成功':'失敗'}</span></td>
+                    </tr>
+                `}).join('');
+                document.getElementById('historyTable').innerHTML = histHtml || '<tr><td colspan="4" class="px-5 py-8 text-center text-muted-foreground">尚無歷史紀錄</td></tr>';
+
+                // 4. 計費與用量顯示 (容錯處理)
+                const usageData = data.usage || {};
+                const billingData = data.billing || {};
+                const usage = usageData.postCount || 0;
+                const cost = parseFloat(usageData.totalCost || 0);
+                const price = parseFloat(billingData.pricePerPost || 0.5);
+                const quota = parseInt(billingData.freeQuota || 100);
+                
+                if(document.getElementById('usageCount')) document.getElementById('usageCount').innerText = usage;
+                if(document.getElementById('usageCost')) document.getElementById('usageCost').innerText = cost.toFixed(1);
+                if(document.getElementById('freeQuotaText')) document.getElementById('freeQuotaText').innerText = `每月免費額度: ${quota} 篇`;
+                if(document.getElementById('pricePerPostText')) document.getElementById('pricePerPostText').innerText = `每篇超額發文: $${price}`;
+
+                // 同步填充管理員設定表單的預設值
+                if(document.getElementById('adminPrice') && !document.getElementById('adminPrice').value) document.getElementById('adminPrice').value = price;
+                if(document.getElementById('adminQuota') && !document.getElementById('adminQuota').value) document.getElementById('adminQuota').value = quota;
+
+            } catch(e) { 
+                console.error('載入儀表板資料發生嚴重崩潰:', e); 
+                showAlert('伺服器處理中或發生異常，請確認後端運行狀態。', false); 
+            }
+        }
+
+        // ==========================================
+        // 管理員與權限機制 (包含強制重設密碼)
+        // ==========================================
+        
+        function checkAdminSession() {
+            const saved = localStorage.getItem('adminUser');
+            if(saved) {
+                currentAdminUser = JSON.parse(saved);
+                isAdminLoggedIn = true;
+                showAdminMainSection();
+            } else {
+                showAdminLoginSection();
+            }
+        }
+        
+        function showAdminLoginSection() {
+            document.getElementById('adminLoginSection').classList.remove('hidden');
+            document.getElementById('adminMainSection').classList.add('hidden');
+        }
+        
+        function showAdminMainSection() {
+            document.getElementById('adminLoginSection').classList.add('hidden');
+            document.getElementById('adminMainSection').classList.remove('hidden');
+            loadAdminData();
+        }
+        
+        async function adminLogin() {
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            if(!username || !password) {
+                return showAlert('請輸入帳號密碼', false);
+            }
+            
+            try {
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    currentAdminUser = data.user;
+                    isAdminLoggedIn = true;
+                    localStorage.setItem('adminUser', JSON.stringify(data.user));
+                    
+                    document.getElementById('adminUsername').value = '';
+                    document.getElementById('adminPassword').value = '';
+
+                    // 檢查是否使用預設密碼，如果是則強制修改
+                    if (password === '123456' || password === 'admin123') {
+                        document.getElementById('forcePasswordModal').classList.remove('hidden');
+                    } else {
+                        showAlert('登入成功！', true);
+                        showAdminMainSection();
+                    }
+                } else {
+                    showAlert(data.message || '登入失敗', false);
+                }
+            } catch(e) {
+                showAlert('登入失敗，伺服器無回應。', false);
+            }
+        }
+
+        async function submitForcePassword() {
+            const newPassword = document.getElementById('forceNewPassword').value;
+            const confirmPassword = document.getElementById('forceConfirmPassword').value;
+
+            if(!newPassword) return showAlert('新密碼不能為空', false);
+            if(newPassword === '123456' || newPassword === 'admin123') return showAlert('請勿繼續使用預設密碼', false);
+            if(newPassword !== confirmPassword) return showAlert('兩次輸入的密碼不一致', false);
+
+            try {
+                // 呼叫更新用戶的 API (需與你的 bot.py route 對應)
+                const res = await fetch(`/api/admin/users/${currentAdminUser.id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ password: newPassword })
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('密碼已成功修改！', true);
+                    document.getElementById('forcePasswordModal').classList.add('hidden');
+                    document.getElementById('forceNewPassword').value = '';
+                    document.getElementById('forceConfirmPassword').value = '';
+                    showAdminMainSection();
+                } else {
+                    showAlert(data.message || '修改失敗', false);
+                }
+            } catch(e) {
+                showAlert('伺服器無回應，修改失敗。', false);
+            }
+        }
+        
+        function adminLogout() {
+            currentAdminUser = null;
+            isAdminLoggedIn = false;
+            localStorage.removeItem('adminUser');
+            showAdminLoginSection();
+            showAlert('已登出', true);
+        }
+        
+        async function loadAdminData() {
+            loadDashboardData();
+        }
+
+        // ==========================================
+        // 文案管理 (Admin 新增/刪除)
+        // ==========================================
+        function loadAdminTemplates() {
+            const html = allTemplates.map(t => `
+                <tr class="hover:bg-muted/10">
+                    <td class="px-5 py-3 text-muted-foreground">#${t.id}</td>
+                    <td class="px-5 py-3 font-medium">${escapeHtml(t.title)}</td>
+                    <td class="px-5 py-3"><span class="px-2 py-1 bg-secondary rounded text-xs">${escapeHtml(t.category)}</span></td>
+                    <td class="px-5 py-3 text-xs text-muted-foreground truncate max-w-[200px]" title="${escapeHtml(t.content)}">${escapeHtml(t.content)}</td>
+                    <td class="px-5 py-3 text-primary"><i class="fa-solid fa-fire mr-1"></i>${t.usageCount || 0}</td>
+                    <td class="px-5 py-3">
+                        <button onclick="deleteTemplate(${t.id})" class="text-destructive hover:opacity-80 px-2 py-1 border border-destructive/20 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            document.getElementById('adminTemplatesTable').innerHTML = html || '<tr><td colspan="6" class="px-5 py-4 text-center text-muted-foreground">尚無文案資料</td></tr>';
+        }
+
+        function showAddTemplateModal() {
+            document.getElementById('addTemplateModal').classList.remove('hidden');
+        }
+
+        function closeAddTemplateModal() {
+            document.getElementById('addTemplateModal').classList.add('hidden');
+            document.getElementById('newTemplateTitle').value = '';
+            document.getElementById('newTemplateContent').value = '';
+        }
+
+        async function createNewTemplate() {
+            const title = document.getElementById('newTemplateTitle').value;
+            const category = document.getElementById('newTemplateCategory').value;
+            const content = document.getElementById('newTemplateContent').value;
+
+            if(!title || !content) return showAlert('標題與內容為必填！', false);
+
+            try {
+                // 這裡會呼叫後端建立文案的 API (需確保你的 bot.py 已經有對應的 POST 路徑，若無請加上)
+                const res = await fetch('/api/admin/templates', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ title, category, content })
+                });
+                
+                if (res.status === 404) {
+                    // 若後端還沒實作，給予友善提示
+                    showAlert('文案新增功能需要更新後端 (bot.py) 才能生效！請加入 POST /api/admin/templates 路徑。', false);
+                    closeAddTemplateModal();
+                    return;
+                }
+
+                const data = await res.json();
+                if(data.success || res.ok) {
+                    showAlert('文案已成功新增', true);
+                    closeAddTemplateModal();
+                    loadDashboardData(); // 重新拉取以更新列表
+                } else {
+                    showAlert(data.message || '新增失敗', false);
+                }
+            } catch(e) {
+                showAlert('連線錯誤，請確認後端運行狀態', false);
+            }
+        }
+
+        async function deleteTemplate(id) {
+            if(!confirm('確定要刪除此熱門文案嗎？')) return;
+            try {
+                const res = await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' });
+                if(res.ok) {
+                    showAlert('文案已刪除', true);
+                    loadDashboardData();
+                } else {
+                    showAlert('請先在後端實作刪除功能', false);
+                }
+            } catch(e) {
+                showAlert('連線錯誤', false);
+            }
+        }
+
+        async function updateAdminSettings() {
+            const p = document.getElementById('adminPrice').value;
+            const q = document.getElementById('adminQuota').value;
+            try {
+                await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pricePerPost: p, freeQuota: q}) });
+                showAlert('全域計費設定已更新', true);
+                loadDashboardData();
+            } catch(e) { showAlert('更新失敗', false); }
+        }
+        
+        async function loadAllUsers() {
+            try {
+                const res = await fetch('/api/admin/users');
+                const data = await res.json();
+                
+                const usersHtml = (data.users || []).map(u => {
+                    const roleBadge = u.role === 'admin' 
+                        ? '<span class="text-destructive bg-destructive/10 px-2 py-1 rounded text-[10px]">管理員</span>' 
+                        : '<span class="text-muted-foreground bg-secondary px-2 py-1 rounded text-[10px]">一般</span>';
+                    const statusBadge = u.isActive 
+                        ? '<span class="text-[#10b981] bg-[#10b981]/10 px-2 py-1 rounded text-[10px]">啟用</span>'
+                        : '<span class="text-destructive bg-destructive/10 px-2 py-1 rounded text-[10px]">停用</span>';
+                    
+                    const safeUsername = escapeHtml(u.username);
+                    const safeEmail = escapeHtml(u.email || '');
+                    const safePlanName = escapeHtml(u.planName || '未訂閱');
+                    
+                    return `
+                    <tr class="hover:bg-muted/10">
+                        <td class="px-5 py-3 text-muted-foreground">#${u.id}</td>
+                        <td class="px-5 py-3 font-medium text-foreground">${safeUsername}</td>
+                        <td class="px-5 py-3 text-muted-foreground">${safeEmail || '-'}</td>
+                        <td class="px-5 py-3">${roleBadge}</td>
+                        <td class="px-5 py-3 text-muted-foreground">${safePlanName}</td>
+                        <td class="px-5 py-3 font-mono text-primary">${u.currentUsage} 篇</td>
+                        <td class="px-5 py-3">${statusBadge}</td>
+                        <td class="px-5 py-3">
+                            <div class="flex gap-2">
+                                <button onclick="showEditUserModal(${u.id}, '${safeUsername}', '${safeEmail}', '${u.role}', ${u.planId||'null'}, ${u.isActive})" class="text-muted-foreground hover:text-primary px-2 py-1 border border-border rounded text-xs"><i class="fa-solid fa-edit"></i></button>
+                                <button onclick="deleteUser(${u.id})" class="text-destructive hover:opacity-80 px-2 py-1 border border-destructive/20 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `}).join('');
+                
+                document.getElementById('adminUsersTable').innerHTML = usersHtml || '<tr><td colspan="8" class="px-5 py-4 text-center text-muted-foreground">無資料</td></tr>';
+            } catch(e) { 
+                console.error('載入使用者資料失敗:', e);
+            }
+        }
+        
+        function showAddUserModal() {
+            loadPlansForSelect('newUserPlan');
+            document.getElementById('addUserModal').classList.remove('hidden');
+        }
+        
+        function closeAddUserModal() {
+            document.getElementById('addUserModal').classList.add('hidden');
+            document.getElementById('newUserUsername').value = '';
+            document.getElementById('newUserPassword').value = '';
+            document.getElementById('newUserEmail').value = '';
+            document.getElementById('newUserRole').value = 'user';
+        }
+        
+        async function createNewUser() {
+            const username = document.getElementById('newUserUsername').value;
+            const password = document.getElementById('newUserPassword').value;
+            const email = document.getElementById('newUserEmail').value;
+            const role = document.getElementById('newUserRole').value;
+            const planId = document.getElementById('newUserPlan').value || null;
+            
+            if(!username || !password) {
+                return showAlert('帳號密碼為必填', false);
+            }
+            
+            try {
+                const res = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password, email, role, planId})
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('會員新增成功', true);
+                    closeAddUserModal();
+                    loadAllUsers();
+                } else {
+                    showAlert(data.message || '新增失敗', false);
+                }
+            } catch(e) {
+                showAlert('新增失敗', false);
+            }
+        }
+        
+        async function showEditUserModal(id, username, email, role, planId, isActive) {
+            await loadPlansForSelect('editUserPlan');
+            document.getElementById('editUserId').value = id;
+            document.getElementById('editUserUsername').value = username;
+            document.getElementById('editUserEmail').value = email;
+            document.getElementById('editUserRole').value = role;
+            document.getElementById('editUserActive').checked = isActive;
+            document.getElementById('editUserPlan').value = planId || '';
+            document.getElementById('editUserModal').classList.remove('hidden');
+        }
+        
+        function closeEditUserModal() {
+            document.getElementById('editUserModal').classList.add('hidden');
+        }
+        
+        async function saveUserEdit() {
+            const id = document.getElementById('editUserId').value;
+            const username = document.getElementById('editUserUsername').value;
+            const password = document.getElementById('editUserPassword').value;
+            const email = document.getElementById('editUserEmail').value;
+            const role = document.getElementById('editUserRole').value;
+            const planId = document.getElementById('editUserPlan').value || null;
+            const isActive = document.getElementById('editUserActive').checked;
+            
+            const payload = {username, email, role, planId, isActive};
+            if(password) payload.password = password;
+            
+            try {
+                const res = await fetch(`/api/admin/users/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('會員資料已更新', true);
+                    closeEditUserModal();
+                    loadAllUsers();
+                } else {
+                    showAlert(data.message || '更新失敗', false);
+                }
+            } catch(e) {
+                showAlert('更新失敗', false);
+            }
+        }
+        
+        async function deleteUser(id) {
+            if(!confirm('確定要刪除此會員嗎？此操作無法復原。')) return;
+            
+            try {
+                const res = await fetch(`/api/admin/users/${id}`, {method: 'DELETE'});
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('會員已刪除', true);
+                    loadAllUsers();
+                } else {
+                    showAlert(data.message || '刪除失敗', false);
+                }
+            } catch(e) {
+                showAlert('刪除失敗', false);
+            }
+        }
+
+        async function loadAllPlans() {
+            try {
+                const res = await fetch('/api/admin/plans');
+                const data = await res.json();
+                allPlans = data.plans || [];
+                
+                const plansHtml = allPlans.map(p => {
+                    const features = typeof p.features === 'string' ? JSON.parse(p.features || '[]') : (p.features || []);
+                    const featuresHtml = features.map(f => `<li class="flex items-center gap-2"><i class="fa-solid fa-check text-primary text-xs"></i>${escapeHtml(f)}</li>`).join('');
+                    const limitText = p.monthlyPostLimit === -1 ? '無限' : p.monthlyPostLimit;
+                    const aiText = p.aiGenerationLimit === -1 ? '無限' : p.aiGenerationLimit;
+                    const statusBadge = p.isActive 
+                        ? '<span class="text-[#10b981] text-xs">啟用中</span>'
+                        : '<span class="text-destructive text-xs">已停用</span>';
+                    
+                    const safePlanName = escapeHtml(p.planName);
+                    const safeDescription = escapeHtml(p.description || '');
+                    
+                    return `
+                    <div class="rounded-lg bg-card border border-border p-5 shadow-elegant flex flex-col" data-plan-id="${p.id}">
+                        <div class="flex justify-between items-start mb-3">
+                            <h4 class="font-medium text-foreground">${safePlanName}</h4>
+                            ${statusBadge}
+                        </div>
+                        <div class="text-2xl font-bold text-primary mb-2">$${parseFloat(p.priceUsdt).toFixed(2)} <span class="text-sm font-normal text-muted-foreground">USDT</span></div>
+                        <p class="text-xs text-muted-foreground mb-4">${safeDescription}</p>
+                        <div class="text-xs text-muted-foreground mb-2">
+                            <div>發文上限: <span class="text-foreground">${limitText}</span> 篇/月</div>
+                            <div>AI生成: <span class="text-foreground">${aiText}</span> 次/月</div>
+                        </div>
+                        <ul class="text-xs text-muted-foreground space-y-1 mb-4 flex-1">${featuresHtml}</ul>
+                        <div class="flex gap-2 mt-auto">
+                            <button onclick="editPlanById(${p.id})" class="flex-1 py-2 text-xs bg-secondary text-foreground rounded hover:opacity-80"><i class="fa-solid fa-edit mr-1"></i>編輯</button>
+                            <button onclick="deletePlan(${p.id})" class="py-2 px-3 text-xs text-destructive border border-destructive/20 rounded hover:bg-destructive/10"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `}).join('');
+                
+                document.getElementById('plansGrid').innerHTML = plansHtml || '<div class="col-span-4 text-center py-10 text-muted-foreground">尚無訂閱方案</div>';
+            } catch(e) {
+                console.error('載入方案失敗:', e);
+            }
+        }
+        
+        function editPlanById(planId) {
+            const plan = allPlans.find(p => p.id === planId);
+            if(plan) showEditPlanModal(plan);
+        }
+        
+        async function loadPlansForSelect(selectId) {
+            try {
+                const res = await fetch('/api/admin/plans');
+                const data = await res.json();
+                const plans = data.plans || [];
+                
+                const select = document.getElementById(selectId);
+                select.innerHTML = '<option value="">不指定方案</option>' + 
+                    plans.filter(p => p.isActive).map(p => `<option value="${p.id}">${p.planName} ($${p.priceUsdt} USDT)</option>`).join('');
+            } catch(e) {
+                console.error('載入方案選項失敗:', e);
+            }
+        }
+        
+        function showAddPlanModal() {
+            document.getElementById('addPlanModal').classList.remove('hidden');
+        }
+        
+        function closeAddPlanModal() {
+            document.getElementById('addPlanModal').classList.add('hidden');
+            document.getElementById('newPlanName').value = '';
+            document.getElementById('newPlanPrice').value = '';
+            document.getElementById('newPlanDesc').value = '';
+            document.getElementById('newPlanPostLimit').value = '100';
+            document.getElementById('newPlanAiLimit').value = '50';
+            document.getElementById('newPlanFeatures').value = '';
+        }
+        
+        async function createNewPlan() {
+            const planName = document.getElementById('newPlanName').value;
+            const priceUsdt = document.getElementById('newPlanPrice').value;
+            const description = document.getElementById('newPlanDesc').value;
+            const monthlyPostLimit = document.getElementById('newPlanPostLimit').value;
+            const aiGenerationLimit = document.getElementById('newPlanAiLimit').value;
+            const featuresStr = document.getElementById('newPlanFeatures').value;
+            const features = featuresStr.split(',').map(f => f.trim()).filter(f => f);
+            
+            if(!planName || priceUsdt === '') {
+                return showAlert('方案名稱與價格為必填', false);
+            }
+            
+            try {
+                const res = await fetch('/api/admin/plans', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({planName, priceUsdt, description, monthlyPostLimit, aiGenerationLimit, features})
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('方案新增成功', true);
+                    closeAddPlanModal();
+                    loadAllPlans();
+                } else {
+                    showAlert(data.message || '新增失敗', false);
+                }
+            } catch(e) {
+                showAlert('新增失敗', false);
+            }
+        }
+        
+        function showEditPlanModal(plan) {
+            document.getElementById('editPlanId').value = plan.id;
+            document.getElementById('editPlanName').value = plan.planName;
+            document.getElementById('editPlanPrice').value = plan.priceUsdt;
+            document.getElementById('editPlanDesc').value = plan.description || '';
+            document.getElementById('editPlanPostLimit').value = plan.monthlyPostLimit;
+            document.getElementById('editPlanAiLimit').value = plan.aiGenerationLimit;
+            const features = typeof plan.features === 'string' ? JSON.parse(plan.features || '[]') : (plan.features || []);
+            document.getElementById('editPlanFeatures').value = features.join(', ');
+            document.getElementById('editPlanActive').checked = plan.isActive;
+            document.getElementById('editPlanModal').classList.remove('hidden');
+        }
+        
+        function closeEditPlanModal() {
+            document.getElementById('editPlanModal').classList.add('hidden');
+        }
+        
+        async function savePlanEdit() {
+            const id = document.getElementById('editPlanId').value;
+            const planName = document.getElementById('editPlanName').value;
+            const priceUsdt = document.getElementById('editPlanPrice').value;
+            const description = document.getElementById('editPlanDesc').value;
+            const monthlyPostLimit = document.getElementById('editPlanPostLimit').value;
+            const aiGenerationLimit = document.getElementById('editPlanAiLimit').value;
+            const featuresStr = document.getElementById('editPlanFeatures').value;
+            const features = featuresStr.split(',').map(f => f.trim()).filter(f => f);
+            const isActive = document.getElementById('editPlanActive').checked;
+            
+            try {
+                const res = await fetch(`/api/admin/plans/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({planName, priceUsdt, description, monthlyPostLimit, aiGenerationLimit, features, isActive})
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('方案已更新', true);
+                    closeEditPlanModal();
+                    loadAllPlans();
+                } else {
+                    showAlert(data.message || '更新失敗', false);
+                }
+            } catch(e) {
+                showAlert('更新失敗', false);
+            }
+        }
+        
+        async function deletePlan(id) {
+            if(!confirm('確定要刪除此方案嗎？')) return;
+            
+            try {
+                const res = await fetch(`/api/admin/plans/${id}`, {method: 'DELETE'});
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('方案已刪除', true);
+                    loadAllPlans();
+                } else {
+                    showAlert(data.message || '刪除失敗', false);
+                }
+            } catch(e) {
+                showAlert('刪除失敗', false);
+            }
+        }
+
+        async function loadUsdtSettings() {
+            try {
+                const res = await fetch('/api/admin/usdt-settings');
+                const data = await res.json();
+                const settings = data.settings || {};
+                
+                document.getElementById('usdtWalletAddress').value = settings.walletAddress || '';
+                document.getElementById('usdtNetworkType').value = settings.networkType || 'TRC20';
+                document.getElementById('usdtMinAmount').value = settings.minPaymentAmount || 10;
+            } catch(e) {
+                console.error('載入USDT設定失敗:', e);
+            }
+        }
+        
+        async function saveUsdtSettings() {
+            const walletAddress = document.getElementById('usdtWalletAddress').value;
+            const networkType = document.getElementById('usdtNetworkType').value;
+            const minPaymentAmount = document.getElementById('usdtMinAmount').value;
+            
+            if(!walletAddress) {
+                return showAlert('請輸入收款地址', false);
+            }
+            
+            try {
+                const res = await fetch('/api/admin/usdt-settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({walletAddress, networkType, minPaymentAmount})
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('USDT設定已儲存', true);
+                } else {
+                    showAlert(data.message || '儲存失敗', false);
+                }
+            } catch(e) {
+                showAlert('儲存失敗', false);
+            }
+        }
+
+        async function loadPaymentRecords() {
+            try {
+                const res = await fetch('/api/admin/payments');
+                const data = await res.json();
+                const payments = data.payments || [];
+                
+                const paymentsHtml = payments.map(p => {
+                    let statusBadge;
+                    switch(p.status) {
+                        case 'confirmed':
+                            statusBadge = '<span class="text-[#10b981] bg-[#10b981]/10 px-2 py-1 rounded text-[10px]">已確認</span>';
+                            break;
+                        case 'failed':
+                            statusBadge = '<span class="text-destructive bg-destructive/10 px-2 py-1 rounded text-[10px]">失敗</span>';
+                            break;
+                        case 'expired':
+                            statusBadge = '<span class="text-muted-foreground bg-secondary px-2 py-1 rounded text-[10px]">已過期</span>';
+                            break;
+                        default:
+                            statusBadge = '<span class="text-[#f59e0b] bg-[#f59e0b]/10 px-2 py-1 rounded text-[10px]">待確認</span>';
+                    }
+                    
+                    return `
+                    <tr class="hover:bg-muted/10">
+                        <td class="px-5 py-3 text-muted-foreground">#${p.id}</td>
+                        <td class="px-5 py-3 font-medium">${p.username || '-'}</td>
+                        <td class="px-5 py-3">${p.planName || '-'}</td>
+                        <td class="px-5 py-3 font-mono text-primary">$${parseFloat(p.amountUsdt).toFixed(2)}</td>
+                        <td class="px-5 py-3 font-mono text-xs text-muted-foreground truncate max-w-[120px]" title="${p.txHash||''}">${p.txHash || '-'}</td>
+                        <td class="px-5 py-3">${statusBadge}</td>
+                        <td class="px-5 py-3 text-xs text-muted-foreground">${p.createdAt || '-'}</td>
+                        <td class="px-5 py-3">
+                            ${p.status === 'pending' ? `<button onclick="showConfirmPaymentModal(${p.id})" class="text-[#10b981] hover:opacity-80 px-2 py-1 border border-[#10b981]/20 rounded text-xs"><i class="fa-solid fa-check mr-1"></i>確認</button>` : '-'}
+                        </td>
+                    </tr>
+                `}).join('');
+                
+                document.getElementById('paymentRecordsTable').innerHTML = paymentsHtml || '<tr><td colspan="8" class="px-5 py-4 text-center text-muted-foreground">無付款記錄</td></tr>';
+            } catch(e) {
+                console.error('載入付款記錄失敗:', e);
+            }
+        }
+        
+        function showConfirmPaymentModal(paymentId) {
+            document.getElementById('confirmPaymentId').value = paymentId;
+            document.getElementById('confirmTxHash').value = '';
+            document.getElementById('confirmPaymentModal').classList.remove('hidden');
+        }
+        
+        function closeConfirmPaymentModal() {
+            document.getElementById('confirmPaymentModal').classList.add('hidden');
+        }
+        
+        async function confirmPayment() {
+            const paymentId = document.getElementById('confirmPaymentId').value;
+            const txHash = document.getElementById('confirmTxHash').value;
+            
+            try {
+                const res = await fetch(`/api/admin/payments/${paymentId}/confirm`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({txHash})
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('付款已確認，方案已啟用', true);
+                    closeConfirmPaymentModal();
+                    loadPaymentRecords();
+                } else {
+                    showAlert(data.message || '確認失敗', false);
+                }
+            } catch(e) {
+                showAlert('確認失敗', false);
+            }
+        }
+
+        // --- 文案篩選功能 ---
+        function renderTemplates(templates) {
+            const html = templates.map(t => {
+                const safeContent = t.content.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n');
+                const tooltipContent = t.content.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `
+                <div class="rounded-lg border border-border bg-card p-5 hover:border-primary/50 transition-colors flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="text-xs bg-secondary text-foreground px-2.5 py-1 rounded-md">${escapeHtml(t.category)}</span>
+                            <span class="text-xs text-muted-foreground"><i class="fa-solid fa-fire text-[#f59e0b] mr-1"></i>${t.usageCount || 0}</span>
+                        </div>
+                        <h4 class="font-medium mb-2">${escapeHtml(t.title)}</h4>
+                        <p class="text-sm text-muted-foreground line-clamp-3 mb-4" title="${tooltipContent}">${escapeHtml(t.content)}</p>
+                    </div>
+                    <button onclick="useTemplate('${safeContent}')" class="w-full py-2 text-sm text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-all font-medium">套用此文案</button>
+                </div>
+            `}).join('');
+            document.getElementById('templatesGrid').innerHTML = html || '<div class="col-span-3 text-center py-10 text-muted-foreground">目前沒有找到相關文案。</div>';
+        }
+
+        function filterTemplates() {
+            const kw = document.getElementById('searchKeyword').value.trim().toLowerCase();
+            const cat = document.getElementById('filterCategory').value;
+            const filtered = allTemplates.filter(t => {
+                const matchKw = !kw || t.title.toLowerCase().includes(kw) || t.content.toLowerCase().includes(kw) || t.category.toLowerCase().includes(kw);
+                const matchCat = cat === 'all' || t.category === cat;
+                return matchKw && matchCat;
+            });
+            renderTemplates(filtered);
+        }
+
+        function useTemplate(text) {
+            document.getElementById('composeContent').value = text.replace(/\\\\/g, '\\').replace(/\\n/g, '\n');
+            switchTab('compose');
+            showAlert('已成功套用文案！', true);
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        // --- 帳號與發文功能 ---
+        async function addAccount() {
+            const name = document.getElementById('newAccName').value;
+            const token = document.getElementById('newAccToken').value;
+            if(!name || !token) return showAlert('請填寫完整資訊', false);
+            try {
+                const res = await fetch('/api/accounts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accountName:name, accessToken:token}) });
+                if(res.ok) { showAlert('帳號綁定成功', true); document.getElementById('newAccName').value=''; document.getElementById('newAccToken').value=''; loadDashboardData(); }
+            } catch(e) { showAlert('新增失敗', false); }
+        }
+        
+        async function deleteAccount(id) {
+            if(!confirm('確定刪除此帳號嗎？')) return;
+            try { await fetch(`/api/accounts/${id}`, {method:'DELETE'}); loadDashboardData(); } catch(e){}
+        }
+
+        async function uploadImage(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const btn = document.getElementById('uploadBtn');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 上傳中...';
+            try {
+                const res = await fetch('/api/upload', {method:'POST'});
+                const data = await res.json();
+                currentUploadedImageUrl = data.url;
+                document.getElementById('imagePreview').src = currentUploadedImageUrl;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+            } catch(e) { showAlert('上傳失敗', false); }
+            btn.innerHTML = '<i class="fa-solid fa-image"></i> 上傳圖片 (S3)'; e.target.value = '';
+        }
+        function removeImage() { currentUploadedImageUrl = ''; document.getElementById('imagePreviewContainer').classList.add('hidden'); }
+
+        async function generateAI() {
+            const btn = document.getElementById('aiBtn');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
+            try {
+                const res = await fetch('/api/generate-ai', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({topic:'網路行銷'})});
+                const data = await res.json();
+                document.getElementById('composeContent').value = data.content;
+            } catch(e) { showAlert('AI 失敗', false); }
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI 智能生成';
+        }
+
+        async function cancelSchedule(id) {
+            if(!confirm('確定取消排程？')) return;
+            try { await fetch(`/api/schedule/${id}`, {method:'DELETE'}); loadDashboardData(); } catch(e){}
+        }
+
+        async function submitPost(isImmediate) {
+            const content = document.getElementById('composeContent').value;
+            if(!content) return showAlert('請輸入貼文內容！', false);
+            
+            const selectedAccount = document.querySelector('input[name="accountId"]:checked');
+            if(!selectedAccount) return showAlert('請先選擇發布帳號！', false);
+            
+            let scheduledAt;
+            if(isImmediate) {
+                const now = new Date(); now.setMinutes(now.getMinutes() + 1);
+                const tzOffset = now.getTimezoneOffset() * 60000;
+                scheduledAt = new Date(now - tzOffset).toISOString().slice(0, 19).replace('T', ' ');
+            } else {
+                const d = document.getElementById('scheduleDate').value;
+                const t = document.getElementById('scheduleTime').value;
+                if(!d || !t) return showAlert('請選擇時間！', false);
+                scheduledAt = `${d} ${t}:00`;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...'; btn.disabled = true;
+
+            try {
+                const payload = { content, scheduledAt, accountId: selectedAccount.value };
+                if (currentUploadedImageUrl) payload.imageUrl = currentUploadedImageUrl;
+                const response = await fetch('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if(response.ok) {
+                    showAlert(isImmediate ? '任務送出！1分鐘後自動發布' : '排程成功！', true);
+                    document.getElementById('composeContent').value = ''; removeImage(); setDefaultTime(); loadDashboardData();
+                } else { showAlert('儲存失敗', false); }
+            } catch (e) { showAlert('連線錯誤', false); } 
+            finally { btn.innerHTML = origText; btn.disabled = false; }
+        }
+
+        // 初始載入
+        loadDashboardData();
+    </script>
+</body>
+</html>

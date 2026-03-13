@@ -376,7 +376,9 @@ def background_worker():
         except: pass
         time.sleep(CHECK_INTERVAL_SECONDS)
 
+# 確保資料庫在任何部署方式下都會初始化
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     threading.Thread(target=background_worker, daemon=True).start()
     app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))

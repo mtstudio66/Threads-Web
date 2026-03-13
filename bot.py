@@ -25,30 +25,48 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 THREADS_API_URL = "https://graph.threads.net/v1.0/me/threads"
 CHECK_INTERVAL_SECONDS = 60
 
+# 強制讀取環境變數，並加上詳細的 Debug 輸出 (注意：為了安全，密碼只顯示前幾碼)
 DB_HOST = os.getenv("MYSQL_HOST", "localhost")
 DB_PORT = int(os.getenv("MYSQL_PORT", 3306))
 DB_USER = os.getenv("MYSQL_USERNAME") or os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
 
+logger.info(f"👉 準備連線資料庫設定: HOST={DB_HOST}, PORT={DB_PORT}, USER={DB_USER}, DB={DB_DATABASE}")
+safe_pwd = f"{DB_PASSWORD[:3]}...{DB_PASSWORD[-3:]}" if len(DB_PASSWORD) > 6 else "***"
+logger.info(f"👉 密碼檢查 (前/後三碼): {safe_pwd}")
+
 # 絕對路徑讀取 index.html
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_FILE = os.path.join(BASE_DIR, 'index.html')
 
-def get_db_connection(retries=3, delay=2):
-    """取得資料庫連線，具備失敗自動重試機制"""
+def get_db_connection(retries=5, delay=3):
+    """取得資料庫連線，具備更強的失敗自動重試機制與詳細報錯"""
     last_err = None
     for i in range(retries):
         try:
-            return mysql.connector.connect(
-                host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, database=DB_DATABASE
+            logger.info(f"🔄 嘗試連線資料庫 ({i+1}/{retries})...")
+            # 加上 connect_timeout 避免無限卡住
+            conn = mysql.connector.connect(
+                host=DB_HOST, 
+                port=DB_PORT, 
+                user=DB_USER, 
+                password=DB_PASSWORD, 
+                database=DB_DATABASE,
+                connect_timeout=10 
             )
+            logger.info("✅ 資料庫連線成功！")
+            return conn
+        except mysql.connector.Error as err:
+            last_err = err
+            logger.warning(f"⚠️ 資料庫連線失敗 (MySQL Error): 錯誤碼: {err.errno}, 訊息: {err.msg}")
+            time.sleep(delay)
         except Exception as err:
             last_err = err
-            logger.warning(f"⚠️ 資料庫連線失敗，等待 {delay} 秒後重試 ({i+1}/{retries})... 錯誤: {err}")
+            logger.warning(f"⚠️ 資料庫連線失敗 (General Error): {err}")
             time.sleep(delay)
     
-    logger.error("❌ 無法連線至資料庫，請檢查環境變數 (MYSQL_HOST, MYSQL_PORT) 是否設定正確。")
+    logger.error("❌ 嚴重錯誤：無法連線至資料庫！請檢查 Zeabur 的環境變數設定！")
     raise last_err
 
 # --- 密碼雜湊工具函數 ---
@@ -71,7 +89,7 @@ def init_db():
     db = None
     cursor = None
     try:
-        logger.info(f"開始初始化資料庫... 正在嘗試連線至 {DB_HOST}:{DB_PORT}")
+        logger.info("開始執行 init_db()...")
         db = get_db_connection()
         cursor = db.cursor()
         
@@ -207,6 +225,7 @@ def init_db():
             # 修改預設密碼為 123456 (前端會強制修改)
             admin_hash = hash_password('123456')
             cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'admin')", ('admin', admin_hash))
+            logger.info("✅ 成功建立預設管理員 (admin/123456)")
         else:
             cursor.execute("SELECT id, username, role FROM users WHERE password = '' OR password IS NULL")
             users_without_password = cursor.fetchall()
@@ -393,7 +412,8 @@ def admin_login():
             }), 200
         return jsonify({"success": False, "message": "帳號或密碼錯誤"}), 401
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        logger.error(f"Login API Error: {str(e)}")
+        return jsonify({"success": False, "message": "伺服器資料庫連線異常"}), 500
     finally:
         if cursor: cursor.close()
         if db: db.close()
@@ -937,4 +957,3 @@ worker_thread.start()
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))
-    

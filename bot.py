@@ -36,6 +36,7 @@ def init_db():
     db = None
     cursor = None
     try:
+        logger.info("開始初始化資料庫...")
         db = get_db_connection()
         cursor = db.cursor()
         
@@ -102,7 +103,9 @@ def init_db():
 
         # 2. 【強制修復文案庫】只要少於 12 筆，代表資料損毀，全部清空重寫！
         cursor.execute("SELECT COUNT(*) FROM trending_templates")
-        if cursor.fetchone()[0] < 12:
+        template_count = cursor.fetchone()[0]
+        logger.info(f"目前文案庫有 {template_count} 筆資料")
+        if template_count < 12:
             logger.info("檢測到文案庫資料不完整，正在執行強制重置與寫入...")
             cursor.execute("DELETE FROM trending_templates") # 清空壞資料
             templates = [
@@ -123,8 +126,14 @@ def init_db():
             logger.info("✅ 12 筆熱門文案模板已成功強制載入！")
             
         db.commit()
+        logger.info("✅ 資料庫初始化完成")
     except Exception as e:
         logger.error(f"❌ 初始化資料庫失敗: {e}")
+        if db:
+            try:
+                db.rollback()
+            except Exception as re:
+                logger.debug(f"rollback 失敗: {re}")
     finally:
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
@@ -313,7 +322,7 @@ def process_posts():
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = datetime.now()
         
         cursor.execute("""
             SELECT sp.id, sp.accountId, sp.content, sp.imageUrl, ta.accessToken 
@@ -355,7 +364,8 @@ def process_posts():
                 cursor.execute("INSERT INTO posts (accountId, content, status, errorMessage, publishedAt) VALUES (%s, %s, 'failed', %s, NOW())", (post['accountId'], post['content'], result))
                 cursor.execute("UPDATE scheduled_posts SET status = 'failed', errorMessage = %s WHERE id = %s", (result, post_id))
             db.commit()
-    except Exception as e: pass
+    except Exception as e:
+        logger.error(f"process_posts 執行失敗: {e}")
     finally:
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()

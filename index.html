@@ -286,8 +286,11 @@
 
         function setDefaultTime() {
             const now = new Date(); now.setMinutes(now.getMinutes() + 10);
-            document.getElementById('scheduleDate').value = now.toISOString().split('T')[0];
-            document.getElementById('scheduleTime').value = now.toTimeString().slice(0,5);
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            document.getElementById('scheduleDate').value = `${year}-${month}-${day}`;
+            document.getElementById('scheduleTime').value = now.toTimeString().slice(0, 5);
         }
         setDefaultTime();
 
@@ -362,7 +365,7 @@
                 if(!document.getElementById('adminPrice').value) document.getElementById('adminPrice').value = price;
                 if(!document.getElementById('adminQuota').value) document.getElementById('adminQuota').value = quota;
 
-            } catch(e) {}
+            } catch(e) { console.error('載入儀表板資料失敗:', e); showAlert('載入資料失敗，請重試', false); }
         }
 
         // --- 管理員專區邏輯 ---
@@ -382,7 +385,7 @@
                     </tr>
                 `}).join('');
                 document.getElementById('adminUsersTable').innerHTML = usersHtml || '<tr><td colspan="5" class="px-5 py-4 text-center text-muted-foreground">無資料</td></tr>';
-            } catch(e) {}
+            } catch(e) { console.error('載入管理員資料失敗:', e); }
         }
 
         async function updateAdminSettings() {
@@ -397,7 +400,10 @@
 
         // --- 文案篩選功能 ---
         function renderTemplates(templates) {
-            const html = templates.map(t => `
+            const html = templates.map(t => {
+                const safeContent = t.content.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n');
+                const tooltipContent = t.content.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `
                 <div class="rounded-lg border border-border bg-card p-5 hover:border-primary/50 transition-colors flex flex-col justify-between">
                     <div>
                         <div class="flex justify-between items-start mb-3">
@@ -405,19 +411,19 @@
                             <span class="text-xs text-muted-foreground"><i class="fa-solid fa-fire text-[#f59e0b] mr-1"></i>${t.usageCount}</span>
                         </div>
                         <h4 class="font-medium mb-2">${t.title}</h4>
-                        <p class="text-sm text-muted-foreground line-clamp-3 mb-4">${t.content}</p>
+                        <p class="text-sm text-muted-foreground line-clamp-3 mb-4" title="${tooltipContent}">${t.content}</p>
                     </div>
-                    <button onclick="useTemplate('${t.content.replace(/'/g, "\\'")}')" class="w-full py-2 text-sm text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-all font-medium">套用此文案</button>
+                    <button onclick="useTemplate('${safeContent}')" class="w-full py-2 text-sm text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-all font-medium">套用此文案</button>
                 </div>
-            `).join('');
+            `}).join('');
             document.getElementById('templatesGrid').innerHTML = html || '<div class="col-span-3 text-center py-10 text-muted-foreground">目前沒有找到相關文案。</div>';
         }
 
         function filterTemplates() {
-            const kw = document.getElementById('searchKeyword').value.toLowerCase();
+            const kw = document.getElementById('searchKeyword').value.trim().toLowerCase();
             const cat = document.getElementById('filterCategory').value;
             const filtered = allTemplates.filter(t => {
-                const matchKw = t.title.toLowerCase().includes(kw) || t.content.toLowerCase().includes(kw);
+                const matchKw = !kw || t.title.toLowerCase().includes(kw) || t.content.toLowerCase().includes(kw) || t.category.toLowerCase().includes(kw);
                 const matchCat = cat === 'all' || t.category === cat;
                 return matchKw && matchCat;
             });
@@ -425,7 +431,7 @@
         }
 
         function useTemplate(text) {
-            document.getElementById('composeContent').value = text;
+            document.getElementById('composeContent').value = text.replace(/\\\\/g, '\\').replace(/\\n/g, '\n');
             switchTab('compose');
             showAlert('已成功套用文案！', true);
             window.scrollTo({top: 0, behavior: 'smooth'});

@@ -26,7 +26,6 @@ CHECK_INTERVAL_SECONDS = 60
 
 DB_HOST     = os.getenv("MYSQL_HOST",     "localhost")
 DB_PORT     = int(os.getenv("MYSQL_PORT", 3306))
-# ✅ 修復：Zeabur 注入的是 MYSQL_USERNAME，原版 MYSQL_USER 讀不到導致 HTTP 500
 DB_USER     = os.getenv("MYSQL_USERNAME", os.getenv("MYSQL_USER", "root"))
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
@@ -43,7 +42,6 @@ def get_db_connection():
     )
 
 def init_db():
-    """建立 SaaS 系統完整資料庫結構，並強制修復缺失資料"""
     db = None
     cursor = None
     try:
@@ -92,9 +90,17 @@ def init_db():
                 content    TEXT         NOT NULL,
                 category   VARCHAR(64)  NOT NULL,
                 usageCount INT          DEFAULT 0,
+                likeCount  INT          DEFAULT 0,
                 createdAt  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # 舊資料庫若缺少 likeCount 欄位，自動補上
+        try:
+            cursor.execute("ALTER TABLE trending_templates ADD COLUMN likeCount INT DEFAULT 0")
+            logger.info("✅ trending_templates 已補上 likeCount 欄位")
+        except Exception:
+            pass
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id        INT AUTO_INCREMENT PRIMARY KEY,
@@ -137,21 +143,22 @@ def init_db():
             logger.info("檢測到文案庫資料不完整，正在執行強制重置與寫入...")
             cursor.execute("DELETE FROM trending_templates")
             templates = [
-                ("早安勵志", "早安！今天也是充滿希望的一天，持續往目標前進吧！✨",               "勵志"),
-                ("晚安語錄", "辛苦了一天，好好休息，明天我們繼續閃耀。🌙",                     "勵志"),
-                ("突破自我", "不要害怕失敗，每一次跌倒都是為了跳得更高！💪",                   "勵志"),
-                ("美食分享", "今天解鎖了這家超讚的餐廳！這個味道真的讓人難以忘懷 🤤🍲",         "美食"),
-                ("咖啡日常", "用一杯拿鐵開啟美好的一天 ☕️ 大家的早晨都需要一點咖啡因！",       "美食"),
-                ("深夜食堂", "宵夜時間到！這碗泡麵加蛋簡直是人間美味 🍜🔥",                   "美食"),
-                ("旅行風景", "暫時逃離城市的喧囂，這裡的風景真的太美了 ⛰️✈️",               "旅行"),
-                ("週末出遊", "週末就是要出門走走！大家這個週末有什麼計畫呢？🚗",               "旅行"),
-                ("說走就走", "機票買了就出發！有時候旅行就是需要一股衝動 🎫🌍",               "旅行"),
-                ("AI 趨勢", "AI 發展真的太快了，未來的科技趨勢讓人期待又敬畏 🤖🚀",           "科技"),
-                ("程式日常", "解完了一個大 Bug！身為工程師的小確幸 💻🎉",                     "科技"),
-                ("搞笑廢文", "我不是在上班，我是在為我的退休生活籌備資金 💸😂",               "搞笑"),
+                ("早安勵志", "早安！今天也是充滿希望的一天，持續往目標前進吧！✨",               "勵志",  128, 45),
+                ("晚安語錄", "辛苦了一天，好好休息，明天我們繼續閃耀。🌙",                     "勵志",   98, 32),
+                ("突破自我", "不要害怕失敗，每一次跌倒都是為了跳得更高！💪",                   "勵志",  210, 88),
+                ("美食分享", "今天解鎖了這家超讚的餐廳！這個味道真的讓人難以忘懷 🤤🍲",         "美食",  176, 61),
+                ("咖啡日常", "用一杯拿鐵開啟美好的一天 ☕️ 大家的早晨都需要一點咖啡因！",       "美食",   89, 27),
+                ("深夜食堂", "宵夜時間到！這碗泡麵加蛋簡直是人間美味 🍜🔥",                   "美食",  305, 97),
+                ("旅行風景", "暫時逃離城市的喧囂，這裡的風景真的太美了 ⛰️✈️",               "旅行",  143, 55),
+                ("週末出遊", "週末就是要出門走走！大家這個週末有什麼計畫呢？🚗",               "旅行",   67, 19),
+                ("說走就走", "機票買了就出發！有時候旅行就是需要一股衝動 🎫🌍",               "旅行",  188, 73),
+                ("AI 趨勢", "AI 發展真的太快了，未來的科技趨勢讓人期待又敬畏 🤖🚀",           "學習",  112, 41),
+                ("程式日常", "解完了一個大 Bug！身為工程師的小確幸 💻🎉",                     "職場",   95, 38),
+                ("搞笑廢文", "我不是在上班，我是在為我的退休生活籌備資金 💸😂",               "心情",  267, 104),
             ]
             cursor.executemany(
-                "INSERT INTO trending_templates (title, content, category) VALUES (%s, %s, %s)",
+                "INSERT INTO trending_templates (title, content, category, usageCount, likeCount) "
+                "VALUES (%s, %s, %s, %s, %s)",
                 templates
             )
             logger.info(f"✅ {len(templates)} 筆熱門文案模板已成功強制載入！")
@@ -168,7 +175,7 @@ def init_db():
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
 
-# ✅ 新增：在 Flask App 啟動時（含 Gunicorn / Zeabur 部署環境）也能執行 init_db
+# 部署環境（Gunicorn / Zeabur）也能正確執行初始化
 with app.app_context():
     init_db()
 
@@ -180,7 +187,10 @@ with app.app_context():
 def index():
     return send_file('index.html')
 
-# ✅ 新增：健康檢查端點，部署後訪問 /api/health 確認資料庫連線與表格狀態
+# ------------------------------------------
+# 健康檢查
+# ------------------------------------------
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     try:
@@ -209,6 +219,10 @@ def health_check():
             "db_name": DB_DATABASE
         }), 500
 
+# ------------------------------------------
+# 儀表板
+# ------------------------------------------
+
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard_data():
     db = None
@@ -221,12 +235,11 @@ def get_dashboard_data():
         accounts = cursor.fetchall()
 
         cursor.execute(
-            "SELECT id, title, content, category, usageCount "
+            "SELECT id, title, content, category, usageCount, likeCount "
             "FROM trending_templates ORDER BY usageCount DESC"
         )
         templates = cursor.fetchall()
 
-        # ✅ 修復：無參數查詢用單個 %，mysql.connector 不會將 %Y 當 placeholder
         cursor.execute("""
             SELECT sp.id, sp.content, sp.imageUrl,
                    DATE_FORMAT(sp.scheduledAt, '%Y-%m-%d %H:%i') AS scheduledAt,
@@ -239,7 +252,6 @@ def get_dashboard_data():
         """)
         schedules = cursor.fetchall()
 
-        # ✅ 修復：同上，無參數用單個 %
         cursor.execute("""
             SELECT p.id, p.content, p.status,
                    DATE_FORMAT(p.publishedAt, '%Y-%m-%d %H:%i') AS publishedAt,
@@ -277,6 +289,142 @@ def get_dashboard_data():
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
 
+# ------------------------------------------
+# 文案庫 API（對應 React 元件的 tRPC 方法）
+# ------------------------------------------
+
+@app.route('/api/templates', methods=['GET'])
+def list_templates():
+    """GET /api/templates?keyword=&category=全部"""
+    db = None
+    cursor = None
+    try:
+        keyword  = request.args.get('keyword',  '').strip()
+        category = request.args.get('category', '全部').strip()
+
+        db     = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+
+        conditions = []
+        params     = []
+
+        if keyword:
+            conditions.append("(title LIKE %s OR content LIKE %s)")
+            params += [f'%{keyword}%', f'%{keyword}%']
+
+        if category and category != '全部':
+            conditions.append("category = %s")
+            params.append(category)
+
+        where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+        sql = (
+            f"SELECT id, title, content, category, usageCount, likeCount "
+            f"FROM trending_templates {where_clause} "
+            f"ORDER BY usageCount DESC LIMIT 100"
+        )
+        cursor.execute(sql, params if params else None)
+        templates = cursor.fetchall()
+        return jsonify(templates), 200
+
+    except Exception as e:
+        logger.error(f"list_templates 錯誤: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if cursor: cursor.close()
+        if db and db.is_connected(): db.close()
+
+
+@app.route('/api/templates/use', methods=['POST'])
+def use_template():
+    """POST /api/templates/use   body: { "id": 3 }"""
+    db = None
+    cursor = None
+    try:
+        data        = request.json
+        template_id = data.get('id')
+        if not template_id:
+            return jsonify({"message": "缺少 id"}), 400
+
+        db     = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute(
+            "UPDATE trending_templates SET usageCount = usageCount + 1 WHERE id = %s",
+            (template_id,)
+        )
+        db.commit()
+        return jsonify({"message": "使用次數已更新"}), 200
+
+    except Exception as e:
+        logger.error(f"use_template 錯誤: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if cursor: cursor.close()
+        if db and db.is_connected(): db.close()
+
+
+@app.route('/api/templates/generate', methods=['POST'])
+def generate_templates():
+    """POST /api/templates/generate   body: { "topic": "新品上市", "style": "輕鬆幽默" }"""
+    try:
+        data  = request.json
+        topic = data.get('topic', '').strip()
+        style = data.get('style', '').strip()
+
+        if not topic:
+            return jsonify({"message": "請提供主題"}), 400
+
+        style_label = style if style else "通用"
+
+        results = [
+            {
+                "title":   f"{topic} - 輕鬆風",
+                "style":   "輕鬆幽默",
+                "content": (
+                    f"說說今天關於「{topic}」的小故事 😄\n"
+                    f"生活就是要這樣，笑著面對每一天！\n"
+                    f"你們有什麼有趣的經歷嗎？留言分享吧 👇\n"
+                    f"#{topic.replace(' ', '')} #生活日記"
+                )
+            },
+            {
+                "title":   f"{topic} - 專業風",
+                "style":   style_label,
+                "content": (
+                    f"【關於{topic}，你需要知道的事】\n\n"
+                    f"深入了解{topic}的核心價值，\n"
+                    f"掌握關鍵資訊，讓自己走在趨勢前端。\n\n"
+                    f"持續學習，持續成長 🚀\n"
+                    f"#{topic.replace(' ', '')} #乾貨分享"
+                )
+            },
+            {
+                "title":   f"{topic} - 感性風",
+                "style":   "溫馨感人",
+                "content": (
+                    f"每次接觸到{topic}，心裡都有一種說不出的感動 🌸\n\n"
+                    f"那些細微的美好，\n"
+                    f"其實一直都在身邊等著你發現。\n\n"
+                    f"今天也要好好珍惜每一刻 💛\n"
+                    f"#{topic.replace(' ', '')} #溫暖日常"
+                )
+            }
+        ]
+
+        # --- 若有 OpenAI API Key，可取消以下注解改用真實 AI ---
+        # import openai
+        # openai.api_key = os.getenv("OPENAI_API_KEY")
+        # ...
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        logger.error(f"generate_templates 錯誤: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ------------------------------------------
+# 管理員 API
+# ------------------------------------------
+
 @app.route('/api/admin/dashboard', methods=['GET'])
 def get_admin_data():
     db = None
@@ -308,6 +456,7 @@ def get_admin_data():
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
 
+
 @app.route('/api/admin/settings', methods=['POST'])
 def update_billing_settings():
     db = None
@@ -328,6 +477,10 @@ def update_billing_settings():
     finally:
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
+
+# ------------------------------------------
+# 帳號管理 API
+# ------------------------------------------
 
 @app.route('/api/accounts', methods=['POST'])
 def add_account():
@@ -352,6 +505,7 @@ def add_account():
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
 
+
 @app.route('/api/accounts/<int:acc_id>', methods=['DELETE'])
 def delete_account(acc_id):
     db = None
@@ -368,6 +522,10 @@ def delete_account(acc_id):
     finally:
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
+
+# ------------------------------------------
+# 排程 API
+# ------------------------------------------
 
 @app.route('/api/schedule', methods=['POST'])
 def save_schedule():
@@ -391,6 +549,7 @@ def save_schedule():
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
 
+
 @app.route('/api/schedule/<int:post_id>', methods=['DELETE'])
 def cancel_schedule(post_id):
     db = None
@@ -408,12 +567,17 @@ def cancel_schedule(post_id):
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
 
+# ------------------------------------------
+# 其他工具 API
+# ------------------------------------------
+
 @app.route('/api/upload', methods=['POST'])
 def mock_s3_upload():
     time.sleep(1.5)
     return jsonify({
         "url": "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?q=80&w=600&auto=format&fit=crop"
     }), 200
+
 
 @app.route('/api/generate-ai', methods=['POST'])
 def generate_ai():
@@ -448,6 +612,7 @@ def post_to_threads(content, image_url, access_token):
         return False, str(publish_response)
     except Exception as e:
         return False, str(e)
+
 
 def process_posts():
     db = None
@@ -518,6 +683,7 @@ def process_posts():
         if cursor: cursor.close()
         if db and db.is_connected(): db.close()
 
+
 def background_worker():
     logger.info("🤖 背景發文排程器已啟動")
     while True:
@@ -528,7 +694,7 @@ def background_worker():
         time.sleep(CHECK_INTERVAL_SECONDS)
 
 # ==========================================
-# 啟動（本地直接執行用）
+# 啟動
 # ==========================================
 
 if __name__ == "__main__":

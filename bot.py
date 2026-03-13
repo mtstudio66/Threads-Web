@@ -202,6 +202,18 @@ def init_db():
             logger.info("偵測到 users 表缺少 isActive 欄位，正在新增...")
             cursor.execute("ALTER TABLE users ADD COLUMN isActive BOOLEAN DEFAULT TRUE")
             logger.info("✅ isActive 欄位已新增")
+        
+        # 確保 scheduled_posts 表有 imageUrl 欄位
+        if not column_exists('scheduled_posts', 'imageUrl'):
+            logger.info("偵測到 scheduled_posts 表缺少 imageUrl 欄位，正在新增...")
+            cursor.execute("ALTER TABLE scheduled_posts ADD COLUMN imageUrl TEXT DEFAULT NULL")
+            logger.info("✅ scheduled_posts.imageUrl 欄位已新增")
+        
+        # 確保 posts 表有 imageUrl 欄位
+        if not column_exists('posts', 'imageUrl'):
+            logger.info("偵測到 posts 表缺少 imageUrl 欄位，正在新增...")
+            cursor.execute("ALTER TABLE posts ADD COLUMN imageUrl TEXT DEFAULT NULL")
+            logger.info("✅ posts.imageUrl 欄位已新增")
 
         # --- 預設資料寫入與強制修復 ---
         

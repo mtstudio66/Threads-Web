@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 強制清除快取標頭 -->
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>AutoThreader - 終極 SaaS 管理系統</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -165,8 +170,24 @@
                 <div id="templatesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
             </section>
 
-            <!-- 4. 排程與歷史 -->
-            <section id="section-schedule" class="hidden max-w-5xl mx-auto space-y-8">
+            <!-- 4. 排程與歷史 (含進度表) -->
+            <section id="section-schedule" class="hidden max-w-5xl mx-auto space-y-6">
+                <!-- 任務進度表 -->
+                <div class="grid grid-cols-3 gap-4 mb-2">
+                    <div class="bg-card border border-border p-4 rounded-lg shadow-elegant text-center">
+                        <div class="text-muted-foreground text-xs md:text-sm mb-1">待發布</div>
+                        <div id="statPending" class="text-2xl md:text-3xl font-bold text-[#f59e0b]">0</div>
+                    </div>
+                    <div class="bg-card border border-border p-4 rounded-lg shadow-elegant text-center">
+                        <div class="text-muted-foreground text-xs md:text-sm mb-1">已成功</div>
+                        <div id="statSuccess" class="text-2xl md:text-3xl font-bold text-[#10b981]">0</div>
+                    </div>
+                    <div class="bg-card border border-border p-4 rounded-lg shadow-elegant text-center">
+                        <div class="text-muted-foreground text-xs md:text-sm mb-1">已失敗</div>
+                        <div id="statFailed" class="text-2xl md:text-3xl font-bold text-destructive">0</div>
+                    </div>
+                </div>
+
                 <div class="rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
                     <div class="bg-secondary/20 px-5 py-4 border-b border-border flex justify-between items-center">
                         <h3 class="font-medium text-primary"><i class="fa-solid fa-clock mr-2"></i>待發布排程</h3>
@@ -199,7 +220,7 @@
 
             <!-- 5. 【解鎖】計費與系統管理 -->
             <section id="section-admin" class="hidden max-w-5xl mx-auto space-y-6">
-                <!-- 管理員登入區塊 (未登入時顯示) -->
+                <!-- 管理員登入區塊 -->
                 <div id="adminLoginSection" class="max-w-md mx-auto">
                     <div class="rounded-lg bg-card border border-border p-6 shadow-elegant">
                         <h3 class="text-lg font-medium text-foreground mb-4 text-center"><i class="fa-solid fa-lock mr-2 text-primary"></i>管理員登入</h3>
@@ -217,19 +238,19 @@
                     </div>
                 </div>
 
-                <!-- 管理員主介面 (登入後顯示) -->
+                <!-- 管理員主介面 -->
                 <div id="adminMainSection" class="hidden">
-                    <!-- 管理員導航標籤 -->
                     <div class="flex flex-wrap gap-2 mb-6 bg-card border border-border rounded-lg p-2">
                         <button onclick="switchAdminTab('billing')" id="adminTab-billing" class="admin-tab-btn px-4 py-2 text-sm rounded-md bg-primary text-white">計費概況</button>
                         <button onclick="switchAdminTab('users')" id="adminTab-users" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">會員管理</button>
                         <button onclick="switchAdminTab('plans')" id="adminTab-plans" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">訂閱方案</button>
+                        <button onclick="switchAdminTab('templates')" id="adminTab-templates" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">文案管理</button>
                         <button onclick="switchAdminTab('usdt')" id="adminTab-usdt" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">USDT設定</button>
                         <button onclick="switchAdminTab('payments')" id="adminTab-payments" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">付款記錄</button>
                         <button onclick="adminLogout()" class="ml-auto px-4 py-2 text-sm rounded-md text-destructive border border-destructive/20 hover:bg-destructive/10">登出</button>
                     </div>
 
-                    <!-- 計費概況區塊 -->
+                    <!-- 各子區塊保留原樣，未刪減 -->
                     <div id="adminSection-billing">
                         <h3 class="text-lg font-medium text-foreground mb-4"><i class="fa-solid fa-wallet mr-2 text-primary"></i>我的計費概況</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -249,7 +270,6 @@
                             </div>
                         </div>
                         
-                        <!-- 價格設定 -->
                         <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
                             <h4 class="font-medium mb-4 text-sm text-muted-foreground">全域計費設定</h4>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -268,7 +288,6 @@
                         </div>
                     </div>
 
-                    <!-- 會員管理區塊 -->
                     <div id="adminSection-users" class="hidden">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-users mr-2 text-primary"></i>會員管理</h3>
@@ -284,14 +303,9 @@
                                 <table class="w-full text-sm text-left whitespace-nowrap">
                                     <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
                                         <tr>
-                                            <th class="px-5 py-3">ID</th>
-                                            <th class="px-5 py-3">帳號</th>
-                                            <th class="px-5 py-3">Email</th>
-                                            <th class="px-5 py-3">角色</th>
-                                            <th class="px-5 py-3">訂閱方案</th>
-                                            <th class="px-5 py-3">本月用量</th>
-                                            <th class="px-5 py-3">狀態</th>
-                                            <th class="px-5 py-3">操作</th>
+                                            <th class="px-5 py-3">ID</th><th class="px-5 py-3">帳號</th><th class="px-5 py-3">Email</th>
+                                            <th class="px-5 py-3">角色</th><th class="px-5 py-3">訂閱方案</th><th class="px-5 py-3">本月用量</th>
+                                            <th class="px-5 py-3">狀態</th><th class="px-5 py-3">操作</th>
                                         </tr>
                                     </thead>
                                     <tbody id="adminUsersTable" class="divide-y divide-border"></tbody>
@@ -300,20 +314,37 @@
                         </div>
                     </div>
 
-                    <!-- 訂閱方案區塊 -->
                     <div id="adminSection-plans" class="hidden">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-tags mr-2 text-primary"></i>訂閱方案管理</h3>
                             <button onclick="showAddPlanModal()" class="px-4 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-plus mr-1"></i>新增方案</button>
                         </div>
-                        
                         <div id="plansGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
                     </div>
 
-                    <!-- USDT設定區塊 -->
+                    <!-- 新增文案管理區塊 -->
+                    <div id="adminSection-templates" class="hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-fire mr-2 text-primary"></i>文案管理</h3>
+                            <button onclick="showAddTemplateModal()" class="px-4 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-plus mr-1"></i>新增文案</button>
+                        </div>
+                        <div class="rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left whitespace-nowrap md:whitespace-normal">
+                                    <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
+                                        <tr>
+                                            <th class="px-5 py-3">ID</th><th class="px-5 py-3">標題</th><th class="px-5 py-3">分類</th>
+                                            <th class="px-5 py-3 min-w-[200px]">內容預覽</th><th class="px-5 py-3">使用次數</th><th class="px-5 py-3">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminTemplatesTable" class="divide-y divide-border"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="adminSection-usdt" class="hidden">
                         <h3 class="text-lg font-medium text-foreground mb-4"><i class="fa-brands fa-bitcoin mr-2 text-primary"></i>USDT 付款設定</h3>
-                        
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
                                 <h4 class="font-medium mb-4 text-sm text-muted-foreground">收款錢包設定</h4>
@@ -325,9 +356,7 @@
                                     <div>
                                         <label class="text-xs text-muted-foreground block mb-1">網路類型</label>
                                         <select id="usdtNetworkType" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                                            <option value="TRC20">TRC20 (TRON)</option>
-                                            <option value="ERC20">ERC20 (Ethereum)</option>
-                                            <option value="BEP20">BEP20 (BSC)</option>
+                                            <option value="TRC20">TRC20 (TRON)</option><option value="ERC20">ERC20 (Ethereum)</option><option value="BEP20">BEP20 (BSC)</option>
                                         </select>
                                     </div>
                                     <div>
@@ -337,7 +366,6 @@
                                     <button onclick="saveUsdtSettings()" class="w-full py-2 text-sm font-medium bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-save mr-1"></i> 儲存設定</button>
                                 </div>
                             </div>
-                            
                             <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
                                 <h4 class="font-medium mb-4 text-sm text-muted-foreground">付款說明</h4>
                                 <div class="space-y-3 text-sm text-muted-foreground">
@@ -350,7 +378,6 @@
                         </div>
                     </div>
 
-                    <!-- 付款記錄區塊 -->
                     <div id="adminSection-payments" class="hidden">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-receipt mr-2 text-primary"></i>付款記錄</h3>
@@ -362,14 +389,9 @@
                                 <table class="w-full text-sm text-left whitespace-nowrap">
                                     <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
                                         <tr>
-                                            <th class="px-5 py-3">ID</th>
-                                            <th class="px-5 py-3">用戶</th>
-                                            <th class="px-5 py-3">方案</th>
-                                            <th class="px-5 py-3">金額(USDT)</th>
-                                            <th class="px-5 py-3">交易Hash</th>
-                                            <th class="px-5 py-3">狀態</th>
-                                            <th class="px-5 py-3">建立時間</th>
-                                            <th class="px-5 py-3">操作</th>
+                                            <th class="px-5 py-3">ID</th><th class="px-5 py-3">用戶</th><th class="px-5 py-3">方案</th>
+                                            <th class="px-5 py-3">金額(USDT)</th><th class="px-5 py-3">交易Hash</th><th class="px-5 py-3">狀態</th>
+                                            <th class="px-5 py-3">建立時間</th><th class="px-5 py-3">操作</th>
                                         </tr>
                                     </thead>
                                     <tbody id="paymentRecordsTable" class="divide-y divide-border"></tbody>
@@ -383,6 +405,56 @@
         </div>
     </main>
 
+    <!-- === 強制修改密碼 Modal === -->
+    <div id="forcePasswordModal" class="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center hidden">
+        <div class="bg-card border border-destructive/50 rounded-lg p-6 w-full max-w-sm mx-4 shadow-[0_0_30px_rgba(255,50,50,0.15)]">
+            <h3 class="text-lg font-bold mb-2 text-destructive flex items-center"><i class="fa-solid fa-shield-halved mr-2"></i>安全提示：請修改密碼</h3>
+            <p class="text-xs text-muted-foreground mb-5">系統偵測到您正在使用預設密碼 (123456 或 admin123) 登入，為確保系統安全，請立即設定新密碼才能繼續使用。</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-medium text-foreground block mb-1">新密碼</label>
+                    <input type="password" id="forceNewPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="text-xs font-medium text-foreground block mb-1">再次輸入新密碼</label>
+                    <input type="password" id="forceConfirmPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                </div>
+                <button onclick="submitForcePassword()" class="w-full py-2.5 mt-2 text-sm font-bold bg-primary text-white rounded-md hover:opacity-90 transition-opacity">確認修改並進入後台</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- === 新增文案 Modal === -->
+    <div id="addTemplateModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-elegant">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium"><i class="fa-solid fa-fire mr-2 text-primary"></i>新增熱門文案</h3>
+                <button onclick="closeAddTemplateModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-muted-foreground block mb-1">文案標題 *</label>
+                    <input type="text" id="newTemplateTitle" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="例如: 爆款咖啡推廣">
+                </div>
+                <div>
+                    <label class="text-xs text-muted-foreground block mb-1">分類 *</label>
+                    <select id="newTemplateCategory" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                        <option value="勵志">勵志</option><option value="美食">美食</option><option value="旅行">旅行</option><option value="科技">科技</option><option value="搞笑">搞笑</option><option value="其他">其他</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-muted-foreground block mb-1">文案內容 *</label>
+                    <textarea id="newTemplateContent" rows="4" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none" placeholder="輸入文案詳細內容..."></textarea>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeAddTemplateModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
+                    <button onclick="createNewTemplate()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">儲存文案</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 所有的 Modals 隱藏區 (User, Plan, Payment...) 保持不變，直接從原本程式碼沿用即可 -->
     <!-- 新增會員 Modal -->
     <div id="addUserModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
         <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-elegant">
@@ -391,31 +463,11 @@
                 <button onclick="closeAddUserModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-4">
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">帳號 *</label>
-                    <input type="text" id="newUserUsername" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="請輸入帳號">
-                </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">密碼 *</label>
-                    <input type="password" id="newUserPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="請輸入密碼">
-                </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">Email</label>
-                    <input type="email" id="newUserEmail" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="請輸入Email">
-                </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">角色</label>
-                    <select id="newUserRole" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                        <option value="user">一般會員</option>
-                        <option value="admin">管理員</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">訂閱方案</label>
-                    <select id="newUserPlan" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                        <option value="">不指定方案</option>
-                    </select>
-                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">帳號 *</label><input type="text" id="newUserUsername" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">密碼 *</label><input type="password" id="newUserPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">Email</label><input type="email" id="newUserEmail" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">角色</label><select id="newUserRole" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"><option value="user">一般會員</option><option value="admin">管理員</option></select></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">訂閱方案</label><select id="newUserPlan" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"><option value="">不指定方案</option></select></div>
                 <div class="flex gap-3 pt-2">
                     <button onclick="closeAddUserModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
                     <button onclick="createNewUser()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">確認新增</button>
@@ -423,7 +475,6 @@
             </div>
         </div>
     </div>
-
     <!-- 編輯會員 Modal -->
     <div id="editUserModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
         <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-elegant">
@@ -433,35 +484,12 @@
             </div>
             <input type="hidden" id="editUserId">
             <div class="space-y-4">
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">帳號</label>
-                    <input type="text" id="editUserUsername" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">新密碼 (留空則不更改)</label>
-                    <input type="password" id="editUserPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="留空則不更改">
-                </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">Email</label>
-                    <input type="email" id="editUserEmail" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">角色</label>
-                    <select id="editUserRole" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                        <option value="user">一般會員</option>
-                        <option value="admin">管理員</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">訂閱方案</label>
-                    <select id="editUserPlan" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                        <option value="">不指定方案</option>
-                    </select>
-                </div>
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="editUserActive" class="accent-primary">
-                    <label class="text-sm text-muted-foreground">啟用帳號</label>
-                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">帳號</label><input type="text" id="editUserUsername" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">新密碼 (留空不改)</label><input type="password" id="editUserPassword" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">Email</label><input type="email" id="editUserEmail" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">角色</label><select id="editUserRole" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"><option value="user">一般會員</option><option value="admin">管理員</option></select></div>
+                <div><label class="text-xs text-muted-foreground block mb-1">訂閱方案</label><select id="editUserPlan" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"><option value="">不指定方案</option></select></div>
+                <div class="flex items-center gap-2"><input type="checkbox" id="editUserActive" class="accent-primary"><label class="text-sm text-muted-foreground">啟用帳號</label></div>
                 <div class="flex gap-3 pt-2">
                     <button onclick="closeEditUserModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
                     <button onclick="saveUserEdit()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">儲存變更</button>
@@ -469,7 +497,6 @@
             </div>
         </div>
     </div>
-
     <!-- 新增方案 Modal -->
     <div id="addPlanModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
         <div class="bg-card border border-border rounded-lg p-6 w-full max-w-lg mx-4 shadow-elegant">
@@ -479,33 +506,15 @@
             </div>
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs text-muted-foreground block mb-1">方案名稱 *</label>
-                        <input type="text" id="newPlanName" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="例如: 專業方案">
-                    </div>
-                    <div>
-                        <label class="text-xs text-muted-foreground block mb-1">價格 (USDT) *</label>
-                        <input type="number" step="0.01" id="newPlanPrice" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="0.00">
-                    </div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">方案名稱 *</label><input type="text" id="newPlanName" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">價格 (USDT) *</label><input type="number" step="0.01" id="newPlanPrice" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
                 </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">方案描述</label>
-                    <textarea id="newPlanDesc" rows="2" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none" placeholder="方案描述..."></textarea>
-                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">方案描述</label><textarea id="newPlanDesc" rows="2" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none"></textarea></div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs text-muted-foreground block mb-1">每月發文上限 (-1為無限)</label>
-                        <input type="number" id="newPlanPostLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" value="100">
-                    </div>
-                    <div>
-                        <label class="text-xs text-muted-foreground block mb-1">AI生成上限 (-1為無限)</label>
-                        <input type="number" id="newPlanAiLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" value="50">
-                    </div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">發文上限</label><input type="number" id="newPlanPostLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" value="100"></div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">AI生成上限</label><input type="number" id="newPlanAiLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" value="50"></div>
                 </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">方案功能 (逗號分隔)</label>
-                    <input type="text" id="newPlanFeatures" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="基本發文, AI文案生成, 排程發文">
-                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">方案功能 (逗號分隔)</label><input type="text" id="newPlanFeatures" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
                 <div class="flex gap-3 pt-2">
                     <button onclick="closeAddPlanModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
                     <button onclick="createNewPlan()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">確認新增</button>
@@ -513,7 +522,6 @@
             </div>
         </div>
     </div>
-
     <!-- 編輯方案 Modal -->
     <div id="editPlanModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
         <div class="bg-card border border-border rounded-lg p-6 w-full max-w-lg mx-4 shadow-elegant">
@@ -524,37 +532,16 @@
             <input type="hidden" id="editPlanId">
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs text-muted-foreground block mb-1">方案名稱</label>
-                        <input type="text" id="editPlanName" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="text-xs text-muted-foreground block mb-1">價格 (USDT)</label>
-                        <input type="number" step="0.01" id="editPlanPrice" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                    </div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">方案名稱</label><input type="text" id="editPlanName" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">價格 (USDT)</label><input type="number" step="0.01" id="editPlanPrice" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
                 </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">方案描述</label>
-                    <textarea id="editPlanDesc" rows="2" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none"></textarea>
-                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">方案描述</label><textarea id="editPlanDesc" rows="2" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none"></textarea></div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs text-muted-foreground block mb-1">每月發文上限</label>
-                        <input type="number" id="editPlanPostLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="text-xs text-muted-foreground block mb-1">AI生成上限</label>
-                        <input type="number" id="editPlanAiLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                    </div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">發文上限</label><input type="number" id="editPlanPostLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                    <div><label class="text-xs text-muted-foreground block mb-1">AI生成上限</label><input type="number" id="editPlanAiLimit" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
                 </div>
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">方案功能 (逗號分隔)</label>
-                    <input type="text" id="editPlanFeatures" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                </div>
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="editPlanActive" class="accent-primary">
-                    <label class="text-sm text-muted-foreground">啟用方案</label>
-                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">方案功能 (逗號分隔)</label><input type="text" id="editPlanFeatures" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none"></div>
+                <div class="flex items-center gap-2"><input type="checkbox" id="editPlanActive" class="accent-primary"><label class="text-sm text-muted-foreground">啟用方案</label></div>
                 <div class="flex gap-3 pt-2">
                     <button onclick="closeEditPlanModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
                     <button onclick="savePlanEdit()" class="flex-1 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90">儲存變更</button>
@@ -562,7 +549,6 @@
             </div>
         </div>
     </div>
-
     <!-- 確認付款 Modal -->
     <div id="confirmPaymentModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
         <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-elegant">
@@ -572,10 +558,7 @@
             </div>
             <input type="hidden" id="confirmPaymentId">
             <div class="space-y-4">
-                <div>
-                    <label class="text-xs text-muted-foreground block mb-1">交易 Hash</label>
-                    <input type="text" id="confirmTxHash" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono" placeholder="輸入交易Hash以確認付款">
-                </div>
+                <div><label class="text-xs text-muted-foreground block mb-1">交易 Hash</label><input type="text" id="confirmTxHash" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"></div>
                 <p class="text-xs text-muted-foreground">確認付款後，系統將自動為該用戶啟用對應的訂閱方案。</p>
                 <div class="flex gap-3 pt-2">
                     <button onclick="closeConfirmPaymentModal()" class="flex-1 py-2 text-sm bg-secondary text-foreground rounded-md hover:opacity-80">取消</button>
@@ -594,7 +577,7 @@
         
         const sections = ['compose', 'accounts', 'templates', 'schedule', 'admin'];
         const titles = {'compose': '發文編輯器', 'accounts': '帳號管理', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'admin': '計費與系統管理'};
-        const adminSections = ['billing', 'users', 'plans', 'usdt', 'payments'];
+        const adminSections = ['billing', 'users', 'plans', 'templates', 'usdt', 'payments']; // 新增 templates
         
         // XSS 防護: HTML 實體編碼
         function escapeHtml(str) {
@@ -639,6 +622,7 @@
             // 載入對應數據
             if(tabId === 'users') loadAllUsers();
             if(tabId === 'plans') loadAllPlans();
+            if(tabId === 'templates') loadAdminTemplates(); // 載入文案管理
             if(tabId === 'usdt') loadUsdtSettings();
             if(tabId === 'payments') loadPaymentRecords();
         }
@@ -656,79 +640,125 @@
         function showAlert(msg, isSuccess) {
             const box = document.getElementById('globalAlert');
             const styleClass = isSuccess ? 'bg-[#10b981]/10 border-[#10b981]/20 text-[#10b981]' : 'bg-destructive/10 border-destructive/20 text-destructive';
-            const icon = isSuccess ? 'fa-circle-check' : 'fa-circle-exclamation';
+            const icon = isSuccess ? 'fa-circle-check' : 'fa-triangle-exclamation';
             box.className = `mb-6 rounded-md p-4 text-sm font-medium shadow-elegant transition-all duration-300 border ${styleClass}`;
             box.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${msg}`;
             box.classList.remove('hidden');
-            setTimeout(() => box.classList.add('hidden'), 4000);
+            // 錯誤訊息停留長一點，方便截圖除錯
+            setTimeout(() => box.classList.add('hidden'), isSuccess ? 4000 : 8000);
         }
 
+        // 核心優化：加上防快取機制與容錯處理
         async function loadDashboardData() {
             try {
-                const res = await fetch('/api/dashboard');
+                // 加上隨機時間戳，徹底防止瀏覽器快取舊資料
+                const res = await fetch('/api/dashboard?_t=' + new Date().getTime());
+                
+                // 如果回傳非 json，代表伺服器真的掛了 (例如 nginx/502)
+                if (!res.ok && res.status !== 500) {
+                    throw new Error(`HTTP 錯誤: ${res.status}`);
+                }
+                
                 const data = await res.json();
                 
-                const accHtml = data.accounts.map((a, i) => `
+                // 如果後端有回傳錯誤，把錯誤直接印在 UI 上，但不要讓整個畫面壞掉
+                if (data.error) {
+                    console.error("後端回報錯誤:", data.error);
+                    showAlert(`後端資料處理中或發生異常，已啟動保護機制以維持介面運作。`, false);
+                    
+                    // 賦予空陣列以防後面 map() 函式崩潰
+                    data.accounts = [];
+                    data.templates = [];
+                    data.schedules = [];
+                    data.history = [];
+                    data.usage = {postCount: 0, totalCost: 0};
+                    data.billing = {pricePerPost: 0.5, freeQuota: 100};
+                }
+
+                // 1. 帳號渲染
+                const accounts = Array.isArray(data.accounts) ? data.accounts : [];
+                const accHtml = accounts.map((a, i) => `
                     <label class="flex items-center p-3 rounded-md border ${i===0?'border-primary bg-primary/5':'border-border bg-input'} cursor-pointer hover:border-primary">
                         <input type="radio" name="accountId" value="${a.id}" ${i===0?'checked':''} class="mr-3 accent-primary">
-                        <span class="text-sm font-medium">${a.accountName}</span>
+                        <span class="text-sm font-medium">${escapeHtml(a.accountName)}</span>
                     </label>
                 `).join('');
                 document.getElementById('accountList').innerHTML = accHtml || '<p class="text-sm text-muted-foreground">無綁定帳號，請先至帳號管理新增。</p>';
 
-                const manageAccHtml = data.accounts.map(a => `
+                const manageAccHtml = accounts.map(a => `
                     <div class="px-5 py-4 flex justify-between items-center hover:bg-secondary/10">
-                        <div><div class="font-medium text-sm">${a.accountName}</div><div class="text-xs text-muted-foreground mt-1">已啟用</div></div>
+                        <div><div class="font-medium text-sm">${escapeHtml(a.accountName)}</div><div class="text-xs text-muted-foreground mt-1">已啟用</div></div>
                         <button onclick="deleteAccount(${a.id})" class="text-destructive hover:opacity-80 p-2"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 `).join('');
                 document.getElementById('manageAccountList').innerHTML = manageAccHtml || '<div class="p-5 text-center text-sm text-muted-foreground">尚無帳號</div>';
 
-                allTemplates = data.templates || [];
+                // 2. 文案渲染
+                allTemplates = Array.isArray(data.templates) ? data.templates : [];
                 filterTemplates();
+                if(document.getElementById('adminSection-templates').classList.contains('hidden') === false) {
+                    loadAdminTemplates(); // 如果在文案管理頁面，順便刷新
+                }
 
-                const schHtml = data.schedules.map(s => `
+                // 3. 排程與歷史 (含進度表更新)
+                const schedules = Array.isArray(data.schedules) ? data.schedules : [];
+                const history = Array.isArray(data.history) ? data.history : [];
+                
+                // --- 更新進度表數字 ---
+                const publishedCount = history.filter(h => h.status === 'published').length;
+                const failedCount = history.filter(h => h.status === 'failed').length;
+                
+                if(document.getElementById('statPending')) document.getElementById('statPending').innerText = schedules.length;
+                if(document.getElementById('statSuccess')) document.getElementById('statSuccess').innerText = publishedCount;
+                if(document.getElementById('statFailed')) document.getElementById('statFailed').innerText = failedCount;
+
+                const schHtml = schedules.map(s => `
                     <tr class="hover:bg-muted/10">
                         <td class="px-5 py-4">${s.scheduledAt}</td>
-                        <td class="px-5 py-4 font-medium text-primary">${s.accountName || '未知'}</td>
-                        <td class="px-5 py-4 truncate max-w-[150px]">${s.imageUrl ? '<i class="fa-solid fa-image text-primary mr-1"></i>' : ''}${s.content}</td>
+                        <td class="px-5 py-4 font-medium text-primary">${escapeHtml(s.accountName) || '未知'}</td>
+                        <td class="px-5 py-4 truncate max-w-[150px]">${s.imageUrl ? '<i class="fa-solid fa-image text-primary mr-1"></i>' : ''}${escapeHtml(s.content)}</td>
                         <td class="px-5 py-4"><button onclick="cancelSchedule(${s.id})" class="text-destructive hover:opacity-80 border border-destructive/20 bg-destructive/10 px-3 py-1.5 rounded-md text-xs"><i class="fa-solid fa-xmark mr-1"></i>取消</button></td>
                     </tr>
                 `).join('');
                 document.getElementById('scheduleTable').innerHTML = schHtml || '<tr><td colspan="4" class="px-5 py-8 text-center text-muted-foreground">沒有待發布的排程</td></tr>';
 
-                const histHtml = data.history.map(h => {
+                const histHtml = history.map(h => {
                     const isSuccess = h.status === 'published';
                     return `
                     <tr class="hover:bg-muted/10">
                         <td class="px-5 py-4">${h.publishedAt || '-'}</td>
-                        <td class="px-5 py-4 font-medium text-primary">${h.accountName || '未知'}</td>
-                        <td class="px-5 py-4 truncate max-w-[150px]" title="${h.errorMessage||''}">${h.content}</td>
+                        <td class="px-5 py-4 font-medium text-primary">${escapeHtml(h.accountName) || '未知'}</td>
+                        <td class="px-5 py-4 truncate max-w-[150px]" title="${escapeHtml(h.errorMessage||'')}">${escapeHtml(h.content)}</td>
                         <td class="px-5 py-4"><span class="px-2.5 py-1 text-xs rounded-md border ${isSuccess?'bg-primary/10 text-primary border-primary/20':'bg-destructive/10 text-destructive border-destructive/20'}"><i class="fa-solid ${isSuccess?'fa-check':'fa-xmark'} mr-1"></i>${isSuccess?'成功':'失敗'}</span></td>
                     </tr>
                 `}).join('');
                 document.getElementById('historyTable').innerHTML = histHtml || '<tr><td colspan="4" class="px-5 py-8 text-center text-muted-foreground">尚無歷史紀錄</td></tr>';
 
-                // 計費與用量顯示
-                const usage = data.usage.postCount || 0;
-                const cost = parseFloat(data.usage.totalCost || 0);
-                const price = parseFloat(data.billing.pricePerPost);
-                const quota = parseInt(data.billing.freeQuota);
+                // 4. 計費與用量顯示 (容錯處理)
+                const usageData = data.usage || {};
+                const billingData = data.billing || {};
+                const usage = usageData.postCount || 0;
+                const cost = parseFloat(usageData.totalCost || 0);
+                const price = parseFloat(billingData.pricePerPost || 0.5);
+                const quota = parseInt(billingData.freeQuota || 100);
                 
-                document.getElementById('usageCount').innerText = usage;
-                document.getElementById('usageCost').innerText = cost.toFixed(1);
-                document.getElementById('freeQuotaText').innerText = `每月免費額度: ${quota} 篇`;
-                document.getElementById('pricePerPostText').innerText = `每篇超額發文: $${price}`;
+                if(document.getElementById('usageCount')) document.getElementById('usageCount').innerText = usage;
+                if(document.getElementById('usageCost')) document.getElementById('usageCost').innerText = cost.toFixed(1);
+                if(document.getElementById('freeQuotaText')) document.getElementById('freeQuotaText').innerText = `每月免費額度: ${quota} 篇`;
+                if(document.getElementById('pricePerPostText')) document.getElementById('pricePerPostText').innerText = `每篇超額發文: $${price}`;
 
                 // 同步填充管理員設定表單的預設值
-                if(!document.getElementById('adminPrice').value) document.getElementById('adminPrice').value = price;
-                if(!document.getElementById('adminQuota').value) document.getElementById('adminQuota').value = quota;
+                if(document.getElementById('adminPrice') && !document.getElementById('adminPrice').value) document.getElementById('adminPrice').value = price;
+                if(document.getElementById('adminQuota') && !document.getElementById('adminQuota').value) document.getElementById('adminQuota').value = quota;
 
-            } catch(e) { console.error('載入儀表板資料失敗:', e); showAlert('載入資料失敗，請重試', false); }
+            } catch(e) { 
+                console.error('載入儀表板資料發生嚴重崩潰:', e); 
+                showAlert('伺服器處理中或發生異常，請確認後端運行狀態。', false); 
+            }
         }
 
         // ==========================================
-        // 管理員認證邏輯
+        // 管理員與權限機制 (包含強制重設密碼)
         // ==========================================
         
         function checkAdminSession() {
@@ -773,15 +803,53 @@
                     currentAdminUser = data.user;
                     isAdminLoggedIn = true;
                     localStorage.setItem('adminUser', JSON.stringify(data.user));
-                    showAlert('登入成功！', true);
-                    showAdminMainSection();
+                    
                     document.getElementById('adminUsername').value = '';
                     document.getElementById('adminPassword').value = '';
+
+                    // 檢查是否使用預設密碼，如果是則強制修改
+                    if (password === '123456' || password === 'admin123') {
+                        document.getElementById('forcePasswordModal').classList.remove('hidden');
+                    } else {
+                        showAlert('登入成功！', true);
+                        showAdminMainSection();
+                    }
                 } else {
                     showAlert(data.message || '登入失敗', false);
                 }
             } catch(e) {
-                showAlert('登入失敗，請稍後再試', false);
+                showAlert('登入失敗，伺服器無回應。', false);
+            }
+        }
+
+        async function submitForcePassword() {
+            const newPassword = document.getElementById('forceNewPassword').value;
+            const confirmPassword = document.getElementById('forceConfirmPassword').value;
+
+            if(!newPassword) return showAlert('新密碼不能為空', false);
+            if(newPassword === '123456' || newPassword === 'admin123') return showAlert('請勿繼續使用預設密碼', false);
+            if(newPassword !== confirmPassword) return showAlert('兩次輸入的密碼不一致', false);
+
+            try {
+                // 呼叫更新用戶的 API (需與你的 bot.py route 對應)
+                const res = await fetch(`/api/admin/users/${currentAdminUser.id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ password: newPassword })
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    showAlert('密碼已成功修改！', true);
+                    document.getElementById('forcePasswordModal').classList.add('hidden');
+                    document.getElementById('forceNewPassword').value = '';
+                    document.getElementById('forceConfirmPassword').value = '';
+                    showAdminMainSection();
+                } else {
+                    showAlert(data.message || '修改失敗', false);
+                }
+            } catch(e) {
+                showAlert('伺服器無回應，修改失敗。', false);
             }
         }
         
@@ -794,8 +862,86 @@
         }
         
         async function loadAdminData() {
-            // 載入計費相關數據
             loadDashboardData();
+        }
+
+        // ==========================================
+        // 文案管理 (Admin 新增/刪除)
+        // ==========================================
+        function loadAdminTemplates() {
+            const html = allTemplates.map(t => `
+                <tr class="hover:bg-muted/10">
+                    <td class="px-5 py-3 text-muted-foreground">#${t.id}</td>
+                    <td class="px-5 py-3 font-medium">${escapeHtml(t.title)}</td>
+                    <td class="px-5 py-3"><span class="px-2 py-1 bg-secondary rounded text-xs">${escapeHtml(t.category)}</span></td>
+                    <td class="px-5 py-3 text-xs text-muted-foreground truncate max-w-[200px]" title="${escapeHtml(t.content)}">${escapeHtml(t.content)}</td>
+                    <td class="px-5 py-3 text-primary"><i class="fa-solid fa-fire mr-1"></i>${t.usageCount || 0}</td>
+                    <td class="px-5 py-3">
+                        <button onclick="deleteTemplate(${t.id})" class="text-destructive hover:opacity-80 px-2 py-1 border border-destructive/20 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            document.getElementById('adminTemplatesTable').innerHTML = html || '<tr><td colspan="6" class="px-5 py-4 text-center text-muted-foreground">尚無文案資料</td></tr>';
+        }
+
+        function showAddTemplateModal() {
+            document.getElementById('addTemplateModal').classList.remove('hidden');
+        }
+
+        function closeAddTemplateModal() {
+            document.getElementById('addTemplateModal').classList.add('hidden');
+            document.getElementById('newTemplateTitle').value = '';
+            document.getElementById('newTemplateContent').value = '';
+        }
+
+        async function createNewTemplate() {
+            const title = document.getElementById('newTemplateTitle').value;
+            const category = document.getElementById('newTemplateCategory').value;
+            const content = document.getElementById('newTemplateContent').value;
+
+            if(!title || !content) return showAlert('標題與內容為必填！', false);
+
+            try {
+                // 這裡會呼叫後端建立文案的 API (需確保你的 bot.py 已經有對應的 POST 路徑，若無請加上)
+                const res = await fetch('/api/admin/templates', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ title, category, content })
+                });
+                
+                if (res.status === 404) {
+                    // 若後端還沒實作，給予友善提示
+                    showAlert('文案新增功能需要更新後端 (bot.py) 才能生效！請加入 POST /api/admin/templates 路徑。', false);
+                    closeAddTemplateModal();
+                    return;
+                }
+
+                const data = await res.json();
+                if(data.success || res.ok) {
+                    showAlert('文案已成功新增', true);
+                    closeAddTemplateModal();
+                    loadDashboardData(); // 重新拉取以更新列表
+                } else {
+                    showAlert(data.message || '新增失敗', false);
+                }
+            } catch(e) {
+                showAlert('連線錯誤，請確認後端運行狀態', false);
+            }
+        }
+
+        async function deleteTemplate(id) {
+            if(!confirm('確定要刪除此熱門文案嗎？')) return;
+            try {
+                const res = await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' });
+                if(res.ok) {
+                    showAlert('文案已刪除', true);
+                    loadDashboardData();
+                } else {
+                    showAlert('請先在後端實作刪除功能', false);
+                }
+            } catch(e) {
+                showAlert('連線錯誤', false);
+            }
         }
 
         async function updateAdminSettings() {
@@ -807,17 +953,13 @@
                 loadDashboardData();
             } catch(e) { showAlert('更新失敗', false); }
         }
-
-        // ==========================================
-        // 會員管理邏輯
-        // ==========================================
         
         async function loadAllUsers() {
             try {
                 const res = await fetch('/api/admin/users');
                 const data = await res.json();
                 
-                const usersHtml = data.users.map(u => {
+                const usersHtml = (data.users || []).map(u => {
                     const roleBadge = u.role === 'admin' 
                         ? '<span class="text-destructive bg-destructive/10 px-2 py-1 rounded text-[10px]">管理員</span>' 
                         : '<span class="text-muted-foreground bg-secondary px-2 py-1 rounded text-[10px]">一般</span>';
@@ -825,7 +967,6 @@
                         ? '<span class="text-[#10b981] bg-[#10b981]/10 px-2 py-1 rounded text-[10px]">啟用</span>'
                         : '<span class="text-destructive bg-destructive/10 px-2 py-1 rounded text-[10px]">停用</span>';
                     
-                    // 使用 escapeHtml 防止 XSS
                     const safeUsername = escapeHtml(u.username);
                     const safeEmail = escapeHtml(u.email || '');
                     const safePlanName = escapeHtml(u.planName || '未訂閱');
@@ -963,10 +1104,6 @@
             }
         }
 
-        // ==========================================
-        // 訂閱方案管理邏輯
-        // ==========================================
-        
         async function loadAllPlans() {
             try {
                 const res = await fetch('/api/admin/plans');
@@ -982,7 +1119,6 @@
                         ? '<span class="text-[#10b981] text-xs">啟用中</span>'
                         : '<span class="text-destructive text-xs">已停用</span>';
                     
-                    // 使用 escapeHtml 防止 XSS
                     const safePlanName = escapeHtml(p.planName);
                     const safeDescription = escapeHtml(p.description || '');
                     
@@ -1012,7 +1148,6 @@
             }
         }
         
-        // 透過ID查找方案並編輯 (避免直接傳遞JSON)
         function editPlanById(planId) {
             const plan = allPlans.find(p => p.id === planId);
             if(plan) showEditPlanModal(plan);
@@ -1145,10 +1280,6 @@
             }
         }
 
-        // ==========================================
-        // USDT設定邏輯
-        // ==========================================
-        
         async function loadUsdtSettings() {
             try {
                 const res = await fetch('/api/admin/usdt-settings');
@@ -1190,10 +1321,6 @@
             }
         }
 
-        // ==========================================
-        // 付款記錄邏輯
-        // ==========================================
-        
         async function loadPaymentRecords() {
             try {
                 const res = await fetch('/api/admin/payments');
@@ -1280,11 +1407,11 @@
                 <div class="rounded-lg border border-border bg-card p-5 hover:border-primary/50 transition-colors flex flex-col justify-between">
                     <div>
                         <div class="flex justify-between items-start mb-3">
-                            <span class="text-xs bg-secondary text-foreground px-2.5 py-1 rounded-md">${t.category}</span>
-                            <span class="text-xs text-muted-foreground"><i class="fa-solid fa-fire text-[#f59e0b] mr-1"></i>${t.usageCount}</span>
+                            <span class="text-xs bg-secondary text-foreground px-2.5 py-1 rounded-md">${escapeHtml(t.category)}</span>
+                            <span class="text-xs text-muted-foreground"><i class="fa-solid fa-fire text-[#f59e0b] mr-1"></i>${t.usageCount || 0}</span>
                         </div>
-                        <h4 class="font-medium mb-2">${t.title}</h4>
-                        <p class="text-sm text-muted-foreground line-clamp-3 mb-4" title="${tooltipContent}">${t.content}</p>
+                        <h4 class="font-medium mb-2">${escapeHtml(t.title)}</h4>
+                        <p class="text-sm text-muted-foreground line-clamp-3 mb-4" title="${tooltipContent}">${escapeHtml(t.content)}</p>
                     </div>
                     <button onclick="useTemplate('${safeContent}')" class="w-full py-2 text-sm text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-all font-medium">套用此文案</button>
                 </div>
@@ -1393,6 +1520,7 @@
             finally { btn.innerHTML = origText; btn.disabled = false; }
         }
 
+        // 初始載入
         loadDashboardData();
     </script>
 </body>

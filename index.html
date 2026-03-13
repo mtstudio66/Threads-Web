@@ -326,7 +326,7 @@
                 document.getElementById('manageAccountList').innerHTML = manageAccHtml || '<div class="p-5 text-center text-sm text-muted-foreground">尚無帳號</div>';
 
                 allTemplates = data.templates || [];
-                renderTemplates(allTemplates);
+                filterTemplates();
 
                 const schHtml = data.schedules.map(s => `
                     <tr class="hover:bg-muted/10">

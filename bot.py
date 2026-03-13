@@ -65,7 +65,7 @@ def init_db():
         # 建立文案表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS trending_templates (
-                id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(256) NOT NULL, content TEXT NOT NULL,
+                id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(256) NOT NULL UNIQUE, content TEXT NOT NULL,
                 category VARCHAR(64) NOT NULL, usageCount INT DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -107,7 +107,7 @@ def init_db():
         logger.info(f"目前文案庫有 {template_count} 筆資料")
         if template_count < 12:
             logger.info("檢測到文案庫資料不完整，正在執行強制重置與寫入...")
-            cursor.execute("DELETE FROM trending_templates") # 清空壞資料
+            # 使用 INSERT IGNORE 避免多工作進程競爭時的重複插入錯誤
             templates = [
                 ("早安勵志", "早安！今天也是充滿希望的一天，持續往目標前進吧！✨", "勵志"),
                 ("晚安語錄", "辛苦了一天，好好休息，明天我們繼續閃耀。🌙", "勵志"),
@@ -122,8 +122,8 @@ def init_db():
                 ("程式日常", "解完了一個大 Bug！身為工程師的小確幸 💻🎉", "科技"),
                 ("搞笑廢文", "我不是在上班，我是在為我的退休生活籌備資金 💸😂", "搞笑")
             ]
-            cursor.executemany("INSERT INTO trending_templates (title, content, category) VALUES (%s, %s, %s)", templates)
-            logger.info("✅ 12 筆熱門文案模板已成功強制載入！")
+            cursor.executemany("INSERT IGNORE INTO trending_templates (title, content, category) VALUES (%s, %s, %s)", templates)
+            logger.info("✅ 熱門文案模板已載入！")
             
         db.commit()
         logger.info("✅ 資料庫初始化完成")
@@ -376,7 +376,9 @@ def background_worker():
         except: pass
         time.sleep(CHECK_INTERVAL_SECONDS)
 
+# 確保資料庫在任何部署方式下都會初始化
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     threading.Thread(target=background_worker, daemon=True).start()
     app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))

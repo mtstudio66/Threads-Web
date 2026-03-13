@@ -30,9 +30,9 @@
             theme: {
                 extend: {
                     colors: {
-                        background: 'var(--background)', foreground: 'var(--foreground)', card: 'var(--card)',
+                        background: 'var(--background)', foreground: 'var(--foreground)', card: 'var(--card)', 
                         primary: 'var(--primary)', secondary: 'var(--secondary)', muted: 'var(--muted)',
-                        'muted-foreground': 'var(--muted-foreground)', destructive: 'var(--destructive)',
+                        'muted-foreground': 'var(--muted-foreground)', destructive: 'var(--destructive)', 
                         border: 'var(--border)', input: 'var(--input)'
                     },
                     borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)' },
@@ -50,21 +50,21 @@
             <h1 class="text-xl font-bold text-primary flex items-center gap-2"><i class="fa-solid fa-bolt"></i> AutoThreader</h1>
         </div>
         <nav class="flex-1 space-y-2 px-4 py-6">
-            <button onclick="switchTab('compose')"   id="tab-desktop-compose"    class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded-md bg-secondary text-foreground transition-colors"><i class="fa-solid fa-pen-nib w-5"></i> 發文編輯</button>
-            <button onclick="switchTab('accounts')"  id="tab-desktop-accounts"   class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-users w-5"></i> 帳號管理</button>
-            <button onclick="switchTab('templates')" id="tab-desktop-templates"  class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-fire w-5"></i> 熱門文案</button>
-            <button onclick="switchTab('schedule')"  id="tab-desktop-schedule"   class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-clock w-5"></i> 排程歷史</button>
-            <button onclick="switchTab('admin')"     id="tab-desktop-admin"      class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-wallet w-5"></i> 計費管理</button>
+            <button onclick="switchTab('compose')" id="tab-desktop-compose" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded-md bg-secondary text-foreground transition-colors"><i class="fa-solid fa-pen-nib w-5"></i> 發文編輯</button>
+            <button onclick="switchTab('accounts')" id="tab-desktop-accounts" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-users w-5"></i> 帳號管理</button>
+            <button onclick="switchTab('templates')" id="tab-desktop-templates" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-fire w-5"></i> 熱門文案</button>
+            <button onclick="switchTab('schedule')" id="tab-desktop-schedule" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-clock w-5"></i> 排程歷史</button>
+            <button onclick="switchTab('admin')" id="tab-desktop-admin" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-wallet w-5"></i> 計費管理</button>
         </nav>
     </aside>
 
     <!-- 手機版底部導航 -->
     <nav class="md:hidden fixed bottom-0 left-0 w-full h-16 bg-background border-t border-border z-50 flex justify-around items-center px-1 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
-        <button onclick="switchTab('compose')"   id="tab-mobile-compose"   class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary"><i class="fa-solid fa-pen-nib text-lg mb-1"></i><span class="text-[10px] font-medium">編輯</span></button>
-        <button onclick="switchTab('accounts')"  id="tab-mobile-accounts"  class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-users text-lg mb-1"></i><span class="text-[10px] font-medium">帳號</span></button>
+        <button onclick="switchTab('compose')" id="tab-mobile-compose" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary"><i class="fa-solid fa-pen-nib text-lg mb-1"></i><span class="text-[10px] font-medium">編輯</span></button>
+        <button onclick="switchTab('accounts')" id="tab-mobile-accounts" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-users text-lg mb-1"></i><span class="text-[10px] font-medium">帳號</span></button>
         <button onclick="switchTab('templates')" id="tab-mobile-templates" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-fire text-lg mb-1"></i><span class="text-[10px] font-medium">文案</span></button>
-        <button onclick="switchTab('schedule')"  id="tab-mobile-schedule"  class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-clock text-lg mb-1"></i><span class="text-[10px] font-medium">歷史</span></button>
-        <button onclick="switchTab('admin')"     id="tab-mobile-admin"     class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-wallet text-lg mb-1"></i><span class="text-[10px] font-medium">管理</span></button>
+        <button onclick="switchTab('schedule')" id="tab-mobile-schedule" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-clock text-lg mb-1"></i><span class="text-[10px] font-medium">歷史</span></button>
+        <button onclick="switchTab('admin')" id="tab-mobile-admin" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-wallet text-lg mb-1"></i><span class="text-[10px] font-medium">管理</span></button>
     </nav>
 
     <!-- 主內容區 -->
@@ -81,7 +81,7 @@
             <div id="globalAlert" class="hidden mb-6 rounded-md p-4 text-sm font-medium shadow-elegant transition-all duration-300 border"></div>
 
             <!-- 1. 發文編輯器 -->
-            <section id="section-compose" class="max-w-5xl mx-auto space-y-6">
+            <section id="section-compose" class="max-w-5xl mx-auto space-y-6 animate-fade-in">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-2 rounded-lg bg-card border border-border p-5 shadow-elegant">
                         <div class="flex justify-between items-center mb-4">
@@ -105,16 +105,16 @@
                         <div class="grid grid-cols-2 gap-4 mb-6">
                             <div>
                                 <label class="block text-xs text-muted-foreground mb-1">排程日期 (留空=立即發)</label>
-                                <input type="date" id="scheduleDate" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground">
+                                <input type="date" id="scheduleDate" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground css-color-scheme-dark">
                             </div>
                             <div>
                                 <label class="block text-xs text-muted-foreground mb-1">排程時間</label>
-                                <input type="time" id="scheduleTime" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground">
+                                <input type="time" id="scheduleTime" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground css-color-scheme-dark">
                             </div>
                         </div>
 
                         <div class="flex justify-end gap-3">
-                            <button onclick="submitPost(true)"  class="px-5 py-2.5 text-sm font-medium bg-secondary hover:bg-secondary/80 rounded-md transition-colors"><i class="fa-solid fa-paper-plane mr-1"></i> 立即發文</button>
+                            <button onclick="submitPost(true)" class="px-5 py-2.5 text-sm font-medium bg-secondary hover:bg-secondary/80 rounded-md transition-colors"><i class="fa-solid fa-paper-plane mr-1"></i> 立即發文</button>
                             <button onclick="submitPost(false)" id="submitBtn" class="px-6 py-2.5 text-sm font-medium text-white bg-primary hover:opacity-90 rounded-md shadow-elegant transition-opacity"><i class="fa-solid fa-clock mr-1"></i> 儲存排程</button>
                         </div>
                     </div>
@@ -144,6 +144,7 @@
                             <button onclick="addAccount()" class="w-full py-2 text-sm font-medium bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-link mr-1"></i> 確認綁定</button>
                         </div>
                     </div>
+                    
                     <div class="rounded-lg bg-card border border-border p-0 shadow-elegant overflow-hidden">
                         <div class="bg-secondary/20 px-5 py-3 border-b border-border">
                             <h3 class="font-medium text-sm">已綁定清單</h3>
@@ -156,16 +157,9 @@
             <!-- 3. 熱門文案庫 -->
             <section id="section-templates" class="hidden max-w-5xl mx-auto space-y-6">
                 <div class="flex flex-col md:flex-row gap-3 mb-4">
-                    <input type="text" id="searchKeyword" oninput="filterTemplates()" placeholder="搜尋文案內容..."
-                        class="flex-1 rounded-md bg-input border border-border px-4 py-2 text-sm focus:border-primary focus:outline-none">
-                    <select id="filterCategory" onchange="filterTemplates()"
-                        class="rounded-md bg-input border border-border px-4 py-2 text-sm focus:border-primary focus:outline-none">
-                        <option value="all">所有分類</option>
-                        <option value="勵志">勵志</option>
-                        <option value="美食">美食</option>
-                        <option value="旅行">旅行</option>
-                        <option value="科技">科技</option>
-                        <option value="搞笑">搞笑</option>
+                    <input type="text" id="searchKeyword" onkeyup="filterTemplates()" placeholder="搜尋文案內容..." class="flex-1 rounded-md bg-input border border-border px-4 py-2 text-sm focus:border-primary focus:outline-none">
+                    <select id="filterCategory" onchange="filterTemplates()" class="rounded-md bg-input border border-border px-4 py-2 text-sm focus:border-primary focus:outline-none">
+                        <option value="all">所有分類</option><option value="勵志">勵志</option><option value="美食">美食</option><option value="旅行">旅行</option><option value="科技">科技</option><option value="搞笑">搞笑</option>
                     </select>
                 </div>
                 <div id="templatesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
@@ -187,6 +181,7 @@
                         </table>
                     </div>
                 </div>
+
                 <div class="rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
                     <div class="bg-secondary/20 px-5 py-4 border-b border-border">
                         <h3 class="font-medium"><i class="fa-solid fa-check-double mr-2 text-muted-foreground"></i>發文歷史記錄</h3>
@@ -202,8 +197,9 @@
                 </div>
             </section>
 
-            <!-- 5. 計費與系統管理 -->
+            <!-- 5. 【解鎖】計費與系統管理 -->
             <section id="section-admin" class="hidden max-w-5xl mx-auto space-y-6">
+                <!-- 個人計費概況 -->
                 <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-wallet mr-2 text-primary"></i>我的計費概況</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div class="rounded-lg bg-card border border-border p-6 shadow-elegant text-center">
@@ -221,10 +217,13 @@
                         <button class="w-full py-2 bg-secondary text-foreground rounded hover:opacity-80 transition-colors"><i class="fa-solid fa-file-invoice mr-2"></i>檢視歷史帳單</button>
                     </div>
                 </div>
-
+                
+                <!-- 管理員專區 -->
                 <div class="mt-12 pt-8 border-t border-border">
                     <h3 class="text-lg font-medium text-destructive mb-6"><i class="fa-solid fa-user-shield mr-2"></i>超級管理員專區</h3>
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- 價格設定 -->
                         <div class="rounded-lg bg-card border border-border p-5 shadow-elegant h-fit">
                             <h4 class="font-medium mb-4 text-sm text-muted-foreground">全域計費設定</h4>
                             <div class="space-y-4">
@@ -239,6 +238,8 @@
                                 <button onclick="updateAdminSettings()" class="w-full py-2 text-sm font-medium bg-destructive text-white rounded-md hover:opacity-90 transition-opacity"><i class="fa-solid fa-save mr-1"></i> 套用全域設定</button>
                             </div>
                         </div>
+
+                        <!-- 使用者列表 -->
                         <div class="lg:col-span-2 rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
                             <div class="bg-secondary/20 px-5 py-3 border-b border-border flex justify-between">
                                 <h4 class="font-medium text-sm text-muted-foreground">使用者與用量追蹤</h4>
@@ -253,6 +254,7 @@
                                 </table>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </section>
@@ -261,430 +263,257 @@
     </main>
 
     <script>
-        // =============================================
-        // 全域狀態
-        // =============================================
         let currentUploadedImageUrl = '';
-        let allTemplates = [];
-        let renderedTemplates = []; // ✅ 修復 Bug：儲存當前渲染中的文案，useTemplate 透過 index 取值
-
+        let allTemplates = []; 
+        
         const sections = ['compose', 'accounts', 'templates', 'schedule', 'admin'];
-        const titles   = {
-            compose:   '發文編輯器',
-            accounts:  '帳號管理',
-            templates: '熱門文案庫',
-            schedule:  '排程與發文歷史',
-            admin:     '計費與系統管理'
-        };
-
-        // =============================================
-        // Tab 切換
-        // =============================================
+        const titles = {'compose': '發文編輯器', 'accounts': '帳號管理', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'admin': '計費與系統管理'};
+        
         function switchTab(tabId) {
             sections.forEach(id => {
                 document.getElementById(`section-${id}`).classList.add('hidden');
-                document.getElementById(`tab-desktop-${id}`).className =
-                    'tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors';
-                document.getElementById(`tab-mobile-${id}`).className =
-                    'tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground transition-colors';
+                document.getElementById(`tab-desktop-${id}`).className = 'tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors';
+                document.getElementById(`tab-mobile-${id}`).className = 'tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground transition-colors';
             });
-
             document.getElementById(`section-${tabId}`).classList.remove('hidden');
             document.getElementById('pageTitle').innerText = titles[tabId];
-            document.getElementById(`tab-desktop-${tabId}`).className =
-                'tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded-md bg-secondary text-foreground transition-colors';
-            document.getElementById(`tab-mobile-${tabId}`).className =
-                'tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary transition-colors';
-
-            if (tabId !== 'compose') loadDashboardData();
-            if (tabId === 'admin')   loadAdminData();
+            document.getElementById(`tab-desktop-${tabId}`).className = 'tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded-md bg-secondary text-foreground transition-colors';
+            document.getElementById(`tab-mobile-${tabId}`).className = 'tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary transition-colors';
+            
+            if(tabId !== 'compose') loadDashboardData();
+            if(tabId === 'admin') loadAdminData();
         }
 
-        // =============================================
-        // 工具函式
-        // =============================================
         function setDefaultTime() {
-            const now = new Date();
-            now.setMinutes(now.getMinutes() + 10);
+            const now = new Date(); now.setMinutes(now.getMinutes() + 10);
             document.getElementById('scheduleDate').value = now.toISOString().split('T')[0];
-            document.getElementById('scheduleTime').value = now.toTimeString().slice(0, 5);
+            document.getElementById('scheduleTime').value = now.toTimeString().slice(0,5);
         }
         setDefaultTime();
 
         function showAlert(msg, isSuccess) {
             const box = document.getElementById('globalAlert');
-            const styleClass = isSuccess
-                ? 'bg-[#10b981]/10 border-[#10b981]/20 text-[#10b981]'
-                : 'bg-destructive/10 border-destructive/20 text-destructive';
+            const styleClass = isSuccess ? 'bg-[#10b981]/10 border-[#10b981]/20 text-[#10b981]' : 'bg-destructive/10 border-destructive/20 text-destructive';
             const icon = isSuccess ? 'fa-circle-check' : 'fa-circle-exclamation';
             box.className = `mb-6 rounded-md p-4 text-sm font-medium shadow-elegant transition-all duration-300 border ${styleClass}`;
             box.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${msg}`;
             box.classList.remove('hidden');
-            clearTimeout(box._timer);
-            box._timer = setTimeout(() => box.classList.add('hidden'), 4000);
+            setTimeout(() => box.classList.add('hidden'), 4000);
         }
 
-        // HTML 跳脫，防止 XSS
-        function escapeHtml(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
-        // =============================================
-        // 載入儀表板資料
-        // =============================================
         async function loadDashboardData() {
             try {
                 const res = await fetch('/api/dashboard');
-                // ✅ 修復：原版 catch(e){} 靜默吞掉錯誤，現在會顯示提示
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-
-                // --- 帳號列表（發文用）---
+                
                 const accHtml = data.accounts.map((a, i) => `
-                    <label class="flex items-center p-3 rounded-md border ${i === 0 ? 'border-primary bg-primary/5' : 'border-border bg-input'} cursor-pointer hover:border-primary">
-                        <input type="radio" name="accountId" value="${a.id}" ${i === 0 ? 'checked' : ''} class="mr-3 accent-primary">
-                        <span class="text-sm font-medium">${escapeHtml(a.accountName)}</span>
+                    <label class="flex items-center p-3 rounded-md border ${i===0?'border-primary bg-primary/5':'border-border bg-input'} cursor-pointer hover:border-primary">
+                        <input type="radio" name="accountId" value="${a.id}" ${i===0?'checked':''} class="mr-3 accent-primary">
+                        <span class="text-sm font-medium">${a.accountName}</span>
                     </label>
                 `).join('');
-                document.getElementById('accountList').innerHTML =
-                    accHtml || '<p class="text-sm text-muted-foreground">無綁定帳號，請先至帳號管理新增。</p>';
+                document.getElementById('accountList').innerHTML = accHtml || '<p class="text-sm text-muted-foreground">無綁定帳號，請先至帳號管理新增。</p>';
 
-                // --- 帳號列表（管理用）---
                 const manageAccHtml = data.accounts.map(a => `
                     <div class="px-5 py-4 flex justify-between items-center hover:bg-secondary/10">
-                        <div>
-                            <div class="font-medium text-sm">${escapeHtml(a.accountName)}</div>
-                            <div class="text-xs text-muted-foreground mt-1">已啟用</div>
-                        </div>
+                        <div><div class="font-medium text-sm">${a.accountName}</div><div class="text-xs text-muted-foreground mt-1">已啟用</div></div>
                         <button onclick="deleteAccount(${a.id})" class="text-destructive hover:opacity-80 p-2"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 `).join('');
-                document.getElementById('manageAccountList').innerHTML =
-                    manageAccHtml || '<div class="p-5 text-center text-sm text-muted-foreground">尚無帳號</div>';
+                document.getElementById('manageAccountList').innerHTML = manageAccHtml || '<div class="p-5 text-center text-sm text-muted-foreground">尚無帳號</div>';
 
-                // --- 文案庫 ---
                 allTemplates = data.templates || [];
-                // ✅ 修復核心 Bug：改呼叫 filterTemplates() 而非 renderTemplates(allTemplates)
-                //    這樣才會套用使用者已選的分類 / 關鍵字篩選條件
-                filterTemplates();
+                renderTemplates(allTemplates);
 
-                // --- 排程列表 ---
                 const schHtml = data.schedules.map(s => `
                     <tr class="hover:bg-muted/10">
-                        <td class="px-5 py-4 text-xs">${escapeHtml(s.scheduledAt)}</td>
-                        <td class="px-5 py-4 font-medium text-primary">${escapeHtml(s.accountName || '未知')}</td>
-                        <td class="px-5 py-4 truncate max-w-[150px]">
-                            ${s.imageUrl ? '<i class="fa-solid fa-image text-primary mr-1"></i>' : ''}${escapeHtml(s.content)}
-                        </td>
-                        <td class="px-5 py-4">
-                            <button onclick="cancelSchedule(${s.id})"
-                                class="text-destructive hover:opacity-80 border border-destructive/20 bg-destructive/10 px-3 py-1.5 rounded-md text-xs">
-                                <i class="fa-solid fa-xmark mr-1"></i>取消
-                            </button>
-                        </td>
+                        <td class="px-5 py-4">${s.scheduledAt}</td>
+                        <td class="px-5 py-4 font-medium text-primary">${s.accountName || '未知'}</td>
+                        <td class="px-5 py-4 truncate max-w-[150px]">${s.imageUrl ? '<i class="fa-solid fa-image text-primary mr-1"></i>' : ''}${s.content}</td>
+                        <td class="px-5 py-4"><button onclick="cancelSchedule(${s.id})" class="text-destructive hover:opacity-80 border border-destructive/20 bg-destructive/10 px-3 py-1.5 rounded-md text-xs"><i class="fa-solid fa-xmark mr-1"></i>取消</button></td>
                     </tr>
                 `).join('');
-                document.getElementById('scheduleTable').innerHTML =
-                    schHtml || '<tr><td colspan="4" class="px-5 py-8 text-center text-muted-foreground">沒有待發布的排程</td></tr>';
+                document.getElementById('scheduleTable').innerHTML = schHtml || '<tr><td colspan="4" class="px-5 py-8 text-center text-muted-foreground">沒有待發布的排程</td></tr>';
 
-                // --- 歷史記錄 ---
                 const histHtml = data.history.map(h => {
                     const isSuccess = h.status === 'published';
                     return `
                     <tr class="hover:bg-muted/10">
-                        <td class="px-5 py-4 text-xs">${escapeHtml(h.publishedAt || '-')}</td>
-                        <td class="px-5 py-4 font-medium text-primary">${escapeHtml(h.accountName || '未知')}</td>
-                        <td class="px-5 py-4 truncate max-w-[150px]" title="${escapeHtml(h.errorMessage || '')}">${escapeHtml(h.content)}</td>
-                        <td class="px-5 py-4">
-                            <span class="px-2.5 py-1 text-xs rounded-md border ${isSuccess ? 'bg-primary/10 text-primary border-primary/20' : 'bg-destructive/10 text-destructive border-destructive/20'}">
-                                <i class="fa-solid ${isSuccess ? 'fa-check' : 'fa-xmark'} mr-1"></i>${isSuccess ? '成功' : '失敗'}
-                            </span>
-                        </td>
+                        <td class="px-5 py-4">${h.publishedAt || '-'}</td>
+                        <td class="px-5 py-4 font-medium text-primary">${h.accountName || '未知'}</td>
+                        <td class="px-5 py-4 truncate max-w-[150px]" title="${h.errorMessage||''}">${h.content}</td>
+                        <td class="px-5 py-4"><span class="px-2.5 py-1 text-xs rounded-md border ${isSuccess?'bg-primary/10 text-primary border-primary/20':'bg-destructive/10 text-destructive border-destructive/20'}"><i class="fa-solid ${isSuccess?'fa-check':'fa-xmark'} mr-1"></i>${isSuccess?'成功':'失敗'}</span></td>
                     </tr>
                 `}).join('');
-                document.getElementById('historyTable').innerHTML =
-                    histHtml || '<tr><td colspan="4" class="px-5 py-8 text-center text-muted-foreground">尚無歷史紀錄</td></tr>';
+                document.getElementById('historyTable').innerHTML = histHtml || '<tr><td colspan="4" class="px-5 py-8 text-center text-muted-foreground">尚無歷史紀錄</td></tr>';
 
-                // --- 計費概況 ---
-                const usage = parseInt(data.usage.postCount   || 0);
-                const cost  = parseFloat(data.usage.totalCost || 0);
+                // 計費與用量顯示
+                const usage = data.usage.postCount || 0;
+                const cost = parseFloat(data.usage.totalCost || 0);
                 const price = parseFloat(data.billing.pricePerPost);
                 const quota = parseInt(data.billing.freeQuota);
-
-                document.getElementById('usageCount').innerText    = usage;
-                document.getElementById('usageCost').innerText     = cost.toFixed(1);
+                
+                document.getElementById('usageCount').innerText = usage;
+                document.getElementById('usageCost').innerText = cost.toFixed(1);
                 document.getElementById('freeQuotaText').innerText = `每月免費額度: ${quota} 篇`;
                 document.getElementById('pricePerPostText').innerText = `每篇超額發文: $${price}`;
 
-                if (!document.getElementById('adminPrice').value) document.getElementById('adminPrice').value = price;
-                if (!document.getElementById('adminQuota').value) document.getElementById('adminQuota').value = quota;
+                // 同步填充管理員設定表單的預設值
+                if(!document.getElementById('adminPrice').value) document.getElementById('adminPrice').value = price;
+                if(!document.getElementById('adminQuota').value) document.getElementById('adminQuota').value = quota;
 
-            } catch (e) {
-                // ✅ 修復：原版靜默失敗，現在顯示錯誤提示
-                showAlert(`資料載入失敗：${e.message}`, false);
-            }
+            } catch(e) {}
         }
 
-        // =============================================
-        // 管理員專區
-        // =============================================
+        // --- 管理員專區邏輯 ---
         async function loadAdminData() {
             try {
                 const res = await fetch('/api/admin/dashboard');
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-
                 const usersHtml = data.users.map(u => {
-                    const roleBadge = u.role === 'admin'
-                        ? '<span class="text-destructive bg-destructive/10 px-2 py-1 rounded text-[10px]">管理員</span>'
-                        : '<span class="text-muted-foreground bg-secondary px-2 py-1 rounded text-[10px]">一般</span>';
+                    const roleBadge = u.role === 'admin' ? '<span class="text-destructive bg-destructive/10 px-2 py-1 rounded text-[10px]">管理員</span>' : '<span class="text-muted-foreground bg-secondary px-2 py-1 rounded text-[10px]">一般</span>';
                     return `
                     <tr class="hover:bg-muted/10">
                         <td class="px-5 py-3 text-muted-foreground">#${u.id}</td>
-                        <td class="px-5 py-3 font-medium text-foreground">${escapeHtml(u.username)}</td>
+                        <td class="px-5 py-3 font-medium text-foreground">${u.username}</td>
                         <td class="px-5 py-3">${roleBadge}</td>
                         <td class="px-5 py-3 font-mono text-primary">${u.currentUsage} 篇</td>
                         <td class="px-5 py-3"><button class="text-muted-foreground hover:text-white px-2 py-1 border border-border rounded text-xs">管理</button></td>
                     </tr>
                 `}).join('');
-                document.getElementById('adminUsersTable').innerHTML =
-                    usersHtml || '<tr><td colspan="5" class="px-5 py-4 text-center text-muted-foreground">無資料</td></tr>';
-
-            } catch (e) {
-                // ✅ 修復：原版靜默失敗
-                showAlert(`管理員資料載入失敗：${e.message}`, false);
-            }
+                document.getElementById('adminUsersTable').innerHTML = usersHtml || '<tr><td colspan="5" class="px-5 py-4 text-center text-muted-foreground">無資料</td></tr>';
+            } catch(e) {}
         }
 
         async function updateAdminSettings() {
             const p = document.getElementById('adminPrice').value;
             const q = document.getElementById('adminQuota').value;
-            if (!p || !q) return showAlert('請填寫完整計費設定', false);
             try {
-                const res = await fetch('/api/admin/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pricePerPost: p, freeQuota: q })
-                });
-                // ✅ 修復：原版未檢查 response 狀態
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pricePerPost: p, freeQuota: q}) });
                 showAlert('全域計費設定已更新', true);
                 loadDashboardData();
-            } catch (e) {
-                showAlert(`更新失敗：${e.message}`, false);
-            }
+            } catch(e) { showAlert('更新失敗', false); }
         }
 
-        // =============================================
-        // 文案篩選與套用
-        // =============================================
+        // --- 文案篩選功能 ---
         function renderTemplates(templates) {
-            renderedTemplates = templates; // ✅ 修復：記錄當前渲染的清單，供 useTemplate 安全取值
-
-            const html = templates.map((t, i) => `
+            const html = templates.map(t => `
                 <div class="rounded-lg border border-border bg-card p-5 hover:border-primary/50 transition-colors flex flex-col justify-between">
                     <div>
                         <div class="flex justify-between items-start mb-3">
-                            <span class="text-xs bg-secondary text-foreground px-2.5 py-1 rounded-md">${escapeHtml(t.category)}</span>
+                            <span class="text-xs bg-secondary text-foreground px-2.5 py-1 rounded-md">${t.category}</span>
                             <span class="text-xs text-muted-foreground"><i class="fa-solid fa-fire text-[#f59e0b] mr-1"></i>${t.usageCount}</span>
                         </div>
-                        <h4 class="font-medium mb-2">${escapeHtml(t.title)}</h4>
-                        <p class="text-sm text-muted-foreground line-clamp-3 mb-4">${escapeHtml(t.content)}</p>
+                        <h4 class="font-medium mb-2">${t.title}</h4>
+                        <p class="text-sm text-muted-foreground line-clamp-3 mb-4">${t.content}</p>
                     </div>
-                    <!-- ✅ 修復 XSS：改用 index 傳值，不再把 content 字串塞進 onclick -->
-                    <button onclick="useTemplate(${i})" class="w-full py-2 text-sm text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-all font-medium">套用此文案</button>
+                    <button onclick="useTemplate('${t.content.replace(/'/g, "\\'")}')" class="w-full py-2 text-sm text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-all font-medium">套用此文案</button>
                 </div>
             `).join('');
-            document.getElementById('templatesGrid').innerHTML =
-                html || '<div class="col-span-3 text-center py-10 text-muted-foreground">目前沒有找到相關文案。</div>';
+            document.getElementById('templatesGrid').innerHTML = html || '<div class="col-span-3 text-center py-10 text-muted-foreground">目前沒有找到相關文案。</div>';
         }
 
         function filterTemplates() {
-            const kw  = document.getElementById('searchKeyword').value.toLowerCase();
+            const kw = document.getElementById('searchKeyword').value.toLowerCase();
             const cat = document.getElementById('filterCategory').value;
             const filtered = allTemplates.filter(t => {
-                const matchKw  = t.title.toLowerCase().includes(kw) || t.content.toLowerCase().includes(kw);
+                const matchKw = t.title.toLowerCase().includes(kw) || t.content.toLowerCase().includes(kw);
                 const matchCat = cat === 'all' || t.category === cat;
                 return matchKw && matchCat;
             });
             renderTemplates(filtered);
         }
 
-        function useTemplate(index) {
-            // ✅ 修復：透過 index 從 renderedTemplates 取得完整 content，避免 XSS 與跳脫字元問題
-            const t = renderedTemplates[index];
-            if (!t) return;
-            document.getElementById('composeContent').value = t.content;
+        function useTemplate(text) {
+            document.getElementById('composeContent').value = text;
             switchTab('compose');
             showAlert('已成功套用文案！', true);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
-        // =============================================
-        // 帳號管理
-        // =============================================
+        // --- 帳號與發文功能 ---
         async function addAccount() {
-            const name  = document.getElementById('newAccName').value.trim();
-            const token = document.getElementById('newAccToken').value.trim();
-            if (!name || !token) return showAlert('請填寫完整資訊', false);
+            const name = document.getElementById('newAccName').value;
+            const token = document.getElementById('newAccToken').value;
+            if(!name || !token) return showAlert('請填寫完整資訊', false);
             try {
-                const res = await fetch('/api/accounts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ accountName: name, accessToken: token })
-                });
-                if (res.ok) {
-                    showAlert('帳號綁定成功', true);
-                    document.getElementById('newAccName').value  = '';
-                    document.getElementById('newAccToken').value = '';
-                    loadDashboardData();
-                } else {
-                    const err = await res.json().catch(() => ({}));
-                    showAlert(err.message || '新增失敗', false);
-                }
-            } catch (e) {
-                showAlert('連線錯誤', false);
-            }
+                const res = await fetch('/api/accounts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accountName:name, accessToken:token}) });
+                if(res.ok) { showAlert('帳號綁定成功', true); document.getElementById('newAccName').value=''; document.getElementById('newAccToken').value=''; loadDashboardData(); }
+            } catch(e) { showAlert('新增失敗', false); }
         }
-
+        
         async function deleteAccount(id) {
-            if (!confirm('確定刪除此帳號嗎？')) return;
-            try {
-                await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
-                showAlert('帳號已刪除', true); // ✅ 修復：原版刪除後無任何提示
-                loadDashboardData();
-            } catch (e) {
-                showAlert('刪除失敗', false);
-            }
+            if(!confirm('確定刪除此帳號嗎？')) return;
+            try { await fetch(`/api/accounts/${id}`, {method:'DELETE'}); loadDashboardData(); } catch(e){}
         }
 
-        // =============================================
-        // 圖片上傳
-        // =============================================
         async function uploadImage(e) {
             const file = e.target.files[0];
-            if (!file) return;
+            if(!file) return;
             const btn = document.getElementById('uploadBtn');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 上傳中...';
-            btn.disabled  = true;
             try {
-                const res  = await fetch('/api/upload', { method: 'POST' });
+                const res = await fetch('/api/upload', {method:'POST'});
                 const data = await res.json();
                 currentUploadedImageUrl = data.url;
                 document.getElementById('imagePreview').src = currentUploadedImageUrl;
                 document.getElementById('imagePreviewContainer').classList.remove('hidden');
-            } catch (e) {
-                showAlert('上傳失敗', false);
-            } finally {
-                btn.innerHTML = '<i class="fa-solid fa-image"></i> 上傳圖片 (S3)';
-                btn.disabled  = false;
-                e.target.value = '';
-            }
+            } catch(e) { showAlert('上傳失敗', false); }
+            btn.innerHTML = '<i class="fa-solid fa-image"></i> 上傳圖片 (S3)'; e.target.value = '';
         }
+        function removeImage() { currentUploadedImageUrl = ''; document.getElementById('imagePreviewContainer').classList.add('hidden'); }
 
-        function removeImage() {
-            currentUploadedImageUrl = '';
-            document.getElementById('imagePreviewContainer').classList.add('hidden');
-        }
-
-        // =============================================
-        // AI 生成
-        // =============================================
         async function generateAI() {
             const btn = document.getElementById('aiBtn');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
-            btn.disabled  = true;
             try {
-                const res  = await fetch('/api/generate-ai', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic: '網路行銷' })
-                });
+                const res = await fetch('/api/generate-ai', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({topic:'網路行銷'})});
                 const data = await res.json();
                 document.getElementById('composeContent').value = data.content;
-            } catch (e) {
-                showAlert('AI 生成失敗', false);
-            } finally {
-                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI 智能生成';
-                btn.disabled  = false;
-            }
+            } catch(e) { showAlert('AI 失敗', false); }
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI 智能生成';
         }
 
-        // =============================================
-        // 排程操作
-        // =============================================
         async function cancelSchedule(id) {
-            if (!confirm('確定取消排程？')) return;
-            try {
-                await fetch(`/api/schedule/${id}`, { method: 'DELETE' });
-                showAlert('排程已取消', true); // ✅ 修復：原版無提示
-                loadDashboardData();
-            } catch (e) {
-                showAlert('取消失敗', false);
-            }
+            if(!confirm('確定取消排程？')) return;
+            try { await fetch(`/api/schedule/${id}`, {method:'DELETE'}); loadDashboardData(); } catch(e){}
         }
 
         async function submitPost(isImmediate) {
-            const content = document.getElementById('composeContent').value.trim();
-            if (!content) return showAlert('請輸入貼文內容！', false);
-
+            const content = document.getElementById('composeContent').value;
+            if(!content) return showAlert('請輸入貼文內容！', false);
+            
             const selectedAccount = document.querySelector('input[name="accountId"]:checked');
-            if (!selectedAccount) return showAlert('請先選擇發布帳號！', false);
-
+            if(!selectedAccount) return showAlert('請先選擇發布帳號！', false);
+            
             let scheduledAt;
-            if (isImmediate) {
-                const now = new Date();
-                now.setMinutes(now.getMinutes() + 1);
+            if(isImmediate) {
+                const now = new Date(); now.setMinutes(now.getMinutes() + 1);
                 const tzOffset = now.getTimezoneOffset() * 60000;
                 scheduledAt = new Date(now - tzOffset).toISOString().slice(0, 19).replace('T', ' ');
             } else {
                 const d = document.getElementById('scheduleDate').value;
                 const t = document.getElementById('scheduleTime').value;
-                if (!d || !t) return showAlert('請選擇排程時間！', false);
+                if(!d || !t) return showAlert('請選擇時間！', false);
                 scheduledAt = `${d} ${t}:00`;
             }
 
-            const btn      = document.getElementById('submitBtn');
+            const btn = document.getElementById('submitBtn');
             const origText = btn.innerHTML;
-            btn.innerHTML  = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...';
-            btn.disabled   = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...'; btn.disabled = true;
 
             try {
                 const payload = { content, scheduledAt, accountId: selectedAccount.value };
                 if (currentUploadedImageUrl) payload.imageUrl = currentUploadedImageUrl;
-
-                const response = await fetch('/api/schedule', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    showAlert(isImmediate ? '任務送出！約1分鐘後自動發布' : '排程成功！', true);
-                    document.getElementById('composeContent').value = '';
-                    removeImage();
-                    setDefaultTime();
-                    loadDashboardData();
-                } else {
-                    const err = await response.json().catch(() => ({}));
-                    showAlert(err.message || '儲存失敗', false);
-                }
-            } catch (e) {
-                showAlert('連線錯誤', false);
-            } finally {
-                btn.innerHTML = origText;
-                btn.disabled  = false;
-            }
+                const response = await fetch('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if(response.ok) {
+                    showAlert(isImmediate ? '任務送出！1分鐘後自動發布' : '排程成功！', true);
+                    document.getElementById('composeContent').value = ''; removeImage(); setDefaultTime(); loadDashboardData();
+                } else { showAlert('儲存失敗', false); }
+            } catch (e) { showAlert('連線錯誤', false); } 
+            finally { btn.innerHTML = origText; btn.disabled = false; }
         }
 
-        // =============================================
-        // 初始化
-        // =============================================
         loadDashboardData();
     </script>
 </body>

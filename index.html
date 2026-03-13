@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AutoThreader - 全能 SaaS 管理系統</title>
+    <title>AutoThreader - 終極 SaaS 管理系統</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -11,20 +11,13 @@
     <style>
         :root {
             --radius: 0.75rem;
-            --background: oklch(0.10 0.01 260);
-            --foreground: oklch(0.95 0.005 260);
-            --card: oklch(0.14 0.015 260);
-            --card-foreground: oklch(0.95 0.005 260);
-            --primary: oklch(0.72 0.18 280); 
-            --primary-foreground: oklch(0.10 0.01 260);
-            --secondary: oklch(0.20 0.02 260);
-            --secondary-foreground: oklch(0.85 0.01 260);
-            --muted: oklch(0.18 0.015 260);
-            --muted-foreground: oklch(0.55 0.02 260);
-            --destructive: oklch(0.60 0.22 25);
-            --border: oklch(0.22 0.02 260);
-            --input: oklch(0.18 0.015 260);
-            --ring: oklch(0.72 0.18 280);
+            --background: oklch(0.10 0.01 260); --foreground: oklch(0.95 0.005 260);
+            --card: oklch(0.14 0.015 260); --card-foreground: oklch(0.95 0.005 260);
+            --primary: oklch(0.72 0.18 280); --primary-foreground: oklch(0.10 0.01 260);
+            --secondary: oklch(0.20 0.02 260); --secondary-foreground: oklch(0.85 0.01 260);
+            --muted: oklch(0.18 0.015 260); --muted-foreground: oklch(0.55 0.02 260);
+            --destructive: oklch(0.60 0.22 25); --border: oklch(0.22 0.02 260);
+            --input: oklch(0.18 0.015 260); --ring: oklch(0.72 0.18 280);
         }
         body { background-color: var(--background); color: var(--foreground); font-family: 'Inter', 'Noto Sans TC', sans-serif; color-scheme: dark; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -37,11 +30,10 @@
             theme: {
                 extend: {
                     colors: {
-                        background: 'var(--background)', foreground: 'var(--foreground)',
-                        card: 'var(--card)', primary: 'var(--primary)',
-                        secondary: 'var(--secondary)', muted: 'var(--muted)',
-                        'muted-foreground': 'var(--muted-foreground)',
-                        destructive: 'var(--destructive)', border: 'var(--border)', input: 'var(--input)'
+                        background: 'var(--background)', foreground: 'var(--foreground)', card: 'var(--card)', 
+                        primary: 'var(--primary)', secondary: 'var(--secondary)', muted: 'var(--muted)',
+                        'muted-foreground': 'var(--muted-foreground)', destructive: 'var(--destructive)', 
+                        border: 'var(--border)', input: 'var(--input)'
                     },
                     borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)' },
                     boxShadow: { 'elegant': '0 4px 20px -5px rgba(0,0,0,0.4)' }
@@ -52,7 +44,7 @@
 </head>
 <body class="h-screen flex overflow-hidden antialiased selection:bg-primary selection:text-white">
 
-    <!-- [桌面版] 左側導航菜單 -->
+    <!-- 桌面版導航 -->
     <aside class="w-64 border-r border-border bg-background hidden md:flex flex-col z-20 shadow-elegant">
         <div class="flex h-16 items-center px-6 border-b border-border">
             <h1 class="text-xl font-bold text-primary flex items-center gap-2"><i class="fa-solid fa-bolt"></i> AutoThreader</h1>
@@ -62,20 +54,20 @@
             <button onclick="switchTab('accounts')" id="tab-desktop-accounts" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-users w-5"></i> 帳號管理</button>
             <button onclick="switchTab('templates')" id="tab-desktop-templates" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-fire w-5"></i> 熱門文案</button>
             <button onclick="switchTab('schedule')" id="tab-desktop-schedule" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-clock w-5"></i> 排程歷史</button>
-            <button onclick="switchTab('billing')" id="tab-desktop-billing" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-wallet w-5"></i> 計費用量</button>
+            <button onclick="switchTab('admin')" id="tab-desktop-admin" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-wallet w-5"></i> 計費管理</button>
         </nav>
     </aside>
 
-    <!-- [手機版] 底部導航列 -->
+    <!-- 手機版底部導航 -->
     <nav class="md:hidden fixed bottom-0 left-0 w-full h-16 bg-background border-t border-border z-50 flex justify-around items-center px-1 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <button onclick="switchTab('compose')" id="tab-mobile-compose" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary"><i class="fa-solid fa-pen-nib text-lg mb-1"></i><span class="text-[10px] font-medium">編輯</span></button>
         <button onclick="switchTab('accounts')" id="tab-mobile-accounts" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-users text-lg mb-1"></i><span class="text-[10px] font-medium">帳號</span></button>
         <button onclick="switchTab('templates')" id="tab-mobile-templates" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-fire text-lg mb-1"></i><span class="text-[10px] font-medium">文案</span></button>
         <button onclick="switchTab('schedule')" id="tab-mobile-schedule" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-clock text-lg mb-1"></i><span class="text-[10px] font-medium">歷史</span></button>
-        <button onclick="switchTab('billing')" id="tab-mobile-billing" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-wallet text-lg mb-1"></i><span class="text-[10px] font-medium">計費</span></button>
+        <button onclick="switchTab('admin')" id="tab-mobile-admin" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-wallet text-lg mb-1"></i><span class="text-[10px] font-medium">管理</span></button>
     </nav>
 
-    <!-- 右側主內容區 -->
+    <!-- 主內容區 -->
     <main class="flex-1 flex flex-col overflow-hidden relative">
         <header class="flex h-14 md:h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 sticky top-0 z-10">
             <h2 id="pageTitle" class="text-base md:text-lg font-semibold tracking-wide">發文編輯器</h2>
@@ -98,7 +90,6 @@
                         </div>
                         <textarea id="composeContent" rows="5" class="w-full rounded-md bg-input border border-border px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground resize-none mb-3" placeholder="想分享什麼？支援 Threads 發文..."></textarea>
                         
-                        <!-- 圖片上傳區 -->
                         <div class="mb-4">
                             <input type="file" id="imageUpload" accept="image/*" class="hidden" onchange="uploadImage(event)">
                             <div id="imagePreviewContainer" class="hidden relative inline-block mb-3">
@@ -128,7 +119,6 @@
                         </div>
                     </div>
 
-                    <!-- 帳號選擇側欄 -->
                     <div class="rounded-lg bg-card border border-border p-5 shadow-elegant h-fit">
                         <label class="block text-sm font-medium mb-4"><i class="fa-solid fa-users mr-2 text-primary"></i>發布目標帳號</label>
                         <div id="accountList" class="space-y-3"></div>
@@ -139,42 +129,34 @@
 
             <!-- 2. 帳號管理 -->
             <section id="section-accounts" class="hidden max-w-4xl mx-auto space-y-6">
-                <div class="flex justify-between items-center mb-4">
-                    <p class="text-sm text-muted-foreground">管理您要綁定自動發文的 Threads 帳號。</p>
-                </div>
-                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- 新增帳號卡片 -->
                     <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
                         <h3 class="font-medium mb-4"><i class="fa-solid fa-plus mr-2 text-primary"></i>綁定新帳號</h3>
                         <div class="space-y-4">
                             <div>
-                                <label class="text-xs text-muted-foreground block mb-1">Threads 帳號名稱 (例如: @my_account)</label>
-                                <input type="text" id="newAccName" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                                <label class="text-xs text-muted-foreground block mb-1">Threads 帳號名稱</label>
+                                <input type="text" id="newAccName" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="例如: @my_account">
                             </div>
                             <div>
-                                <label class="text-xs text-muted-foreground block mb-1">Threads API Token (長期授權碼)</label>
+                                <label class="text-xs text-muted-foreground block mb-1">Threads API Token</label>
                                 <input type="password" id="newAccToken" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
                             </div>
                             <button onclick="addAccount()" class="w-full py-2 text-sm font-medium bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-link mr-1"></i> 確認綁定</button>
                         </div>
                     </div>
                     
-                    <!-- 帳號列表 -->
                     <div class="rounded-lg bg-card border border-border p-0 shadow-elegant overflow-hidden">
                         <div class="bg-secondary/20 px-5 py-3 border-b border-border">
                             <h3 class="font-medium text-sm">已綁定清單</h3>
                         </div>
-                        <div id="manageAccountList" class="divide-y divide-border">
-                            <!-- JS 動態生成 -->
-                        </div>
+                        <div id="manageAccountList" class="divide-y divide-border"></div>
                     </div>
                 </div>
             </section>
 
             <!-- 3. 熱門文案庫 -->
             <section id="section-templates" class="hidden max-w-5xl mx-auto space-y-6">
-                <div class="flex flex-col md:flex-row gap-3 mb-2">
+                <div class="flex flex-col md:flex-row gap-3 mb-4">
                     <input type="text" id="searchKeyword" onkeyup="filterTemplates()" placeholder="搜尋文案內容..." class="flex-1 rounded-md bg-input border border-border px-4 py-2 text-sm focus:border-primary focus:outline-none">
                     <select id="filterCategory" onchange="filterTemplates()" class="rounded-md bg-input border border-border px-4 py-2 text-sm focus:border-primary focus:outline-none">
                         <option value="all">所有分類</option><option value="勵志">勵志</option><option value="美食">美食</option><option value="旅行">旅行</option><option value="科技">科技</option><option value="搞笑">搞笑</option>
@@ -215,29 +197,65 @@
                 </div>
             </section>
 
-            <!-- 5. 計費與管理 -->
-            <section id="section-billing" class="hidden max-w-5xl mx-auto space-y-6">
+            <!-- 5. 【解鎖】計費與系統管理 -->
+            <section id="section-admin" class="hidden max-w-5xl mx-auto space-y-6">
+                <!-- 個人計費概況 -->
+                <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-wallet mr-2 text-primary"></i>我的計費概況</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div class="rounded-lg bg-card border border-border p-6 shadow-elegant text-center">
                         <div class="text-muted-foreground text-sm mb-2">本月已發文次數</div>
                         <div id="usageCount" class="text-4xl font-bold text-primary">0</div>
-                        <div class="text-xs text-muted-foreground mt-2">每月免費額度: 100 篇</div>
+                        <div id="freeQuotaText" class="text-xs text-muted-foreground mt-2">每月免費額度: -- 篇</div>
                     </div>
                     <div class="rounded-lg bg-card border border-border p-6 shadow-elegant text-center">
-                        <div class="text-muted-foreground text-sm mb-2">本月預估費用 (TWD)</div>
+                        <div class="text-muted-foreground text-sm mb-2">本月產生費用 (TWD)</div>
                         <div id="usageCost" class="text-4xl font-bold text-foreground">0.0</div>
-                        <div class="text-xs text-muted-foreground mt-2">每篇超額發文: $0.5</div>
+                        <div id="pricePerPostText" class="text-xs text-muted-foreground mt-2">每篇超額發文: $--</div>
                     </div>
                     <div class="rounded-lg bg-card border border-border p-6 shadow-elegant text-center flex flex-col justify-center">
-                        <button class="w-full py-2 bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary/20 transition-colors mb-2"><i class="fa-solid fa-credit-card mr-2"></i>設定付款方式</button>
-                        <button class="w-full py-2 bg-secondary text-foreground rounded hover:opacity-80 transition-colors"><i class="fa-solid fa-file-invoice mr-2"></i>下載歷史帳單</button>
+                        <button class="w-full py-2 bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary/20 transition-colors mb-2"><i class="fa-solid fa-credit-card mr-2"></i>信用卡綁定</button>
+                        <button class="w-full py-2 bg-secondary text-foreground rounded hover:opacity-80 transition-colors"><i class="fa-solid fa-file-invoice mr-2"></i>檢視歷史帳單</button>
                     </div>
                 </div>
                 
-                <div class="rounded-lg bg-card border border-border p-6 shadow-elegant">
-                    <h3 class="font-medium mb-4"><i class="fa-solid fa-user-shield mr-2 text-primary"></i>管理員角色設定</h3>
-                    <p class="text-sm text-muted-foreground mb-4">系統管理員可檢視所有使用者的用量統計與設定全局價格。此功能目前需要超級權限解鎖。</p>
-                    <button class="px-4 py-2 text-sm bg-secondary rounded text-muted-foreground cursor-not-allowed"><i class="fa-solid fa-lock mr-2"></i>進入管理後台 (已鎖定)</button>
+                <!-- 管理員專區 -->
+                <div class="mt-12 pt-8 border-t border-border">
+                    <h3 class="text-lg font-medium text-destructive mb-6"><i class="fa-solid fa-user-shield mr-2"></i>超級管理員專區</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- 價格設定 -->
+                        <div class="rounded-lg bg-card border border-border p-5 shadow-elegant h-fit">
+                            <h4 class="font-medium mb-4 text-sm text-muted-foreground">全域計費設定</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">每篇超額計費 (TWD)</label>
+                                    <input type="number" step="0.1" id="adminPrice" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">每月免費發文額度</label>
+                                    <input type="number" id="adminQuota" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                                </div>
+                                <button onclick="updateAdminSettings()" class="w-full py-2 text-sm font-medium bg-destructive text-white rounded-md hover:opacity-90 transition-opacity"><i class="fa-solid fa-save mr-1"></i> 套用全域設定</button>
+                            </div>
+                        </div>
+
+                        <!-- 使用者列表 -->
+                        <div class="lg:col-span-2 rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
+                            <div class="bg-secondary/20 px-5 py-3 border-b border-border flex justify-between">
+                                <h4 class="font-medium text-sm text-muted-foreground">使用者與用量追蹤</h4>
+                                <button onclick="loadAdminData()" class="text-xs text-muted-foreground hover:text-foreground"><i class="fa-solid fa-rotate-right"></i></button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left whitespace-nowrap">
+                                    <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
+                                        <tr><th class="px-5 py-3">ID</th><th class="px-5 py-3">使用者</th><th class="px-5 py-3">角色</th><th class="px-5 py-3">本月用量</th><th class="px-5 py-3">操作</th></tr>
+                                    </thead>
+                                    <tbody id="adminUsersTable" class="divide-y divide-border"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </section>
 
@@ -245,12 +263,11 @@
     </main>
 
     <script>
-        // --- 變數與切換邏輯 ---
         let currentUploadedImageUrl = '';
-        let allTemplates = []; // 儲存所有文案供前端搜尋
+        let allTemplates = []; 
         
-        const sections = ['compose', 'accounts', 'templates', 'schedule', 'billing'];
-        const titles = {'compose': '發文編輯器', 'accounts': '帳號管理', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'billing': '計費用量儀表板'};
+        const sections = ['compose', 'accounts', 'templates', 'schedule', 'admin'];
+        const titles = {'compose': '發文編輯器', 'accounts': '帳號管理', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'admin': '計費與系統管理'};
         
         function switchTab(tabId) {
             sections.forEach(id => {
@@ -263,7 +280,8 @@
             document.getElementById(`tab-desktop-${tabId}`).className = 'tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded-md bg-secondary text-foreground transition-colors';
             document.getElementById(`tab-mobile-${tabId}`).className = 'tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary transition-colors';
             
-            if(tabId !== 'compose') loadDashboardData(); // 切換時自動刷新資料
+            if(tabId !== 'compose') loadDashboardData();
+            if(tabId === 'admin') loadAdminData();
         }
 
         function setDefaultTime() {
@@ -283,13 +301,11 @@
             setTimeout(() => box.classList.add('hidden'), 4000);
         }
 
-        // --- API 與渲染邏輯 ---
         async function loadDashboardData() {
             try {
                 const res = await fetch('/api/dashboard');
                 const data = await res.json();
                 
-                // 1. 渲染發文目標帳號 (Radio)
                 const accHtml = data.accounts.map((a, i) => `
                     <label class="flex items-center p-3 rounded-md border ${i===0?'border-primary bg-primary/5':'border-border bg-input'} cursor-pointer hover:border-primary">
                         <input type="radio" name="accountId" value="${a.id}" ${i===0?'checked':''} class="mr-3 accent-primary">
@@ -298,23 +314,17 @@
                 `).join('');
                 document.getElementById('accountList').innerHTML = accHtml || '<p class="text-sm text-muted-foreground">無綁定帳號，請先至帳號管理新增。</p>';
 
-                // 2. 渲染帳號管理列表
                 const manageAccHtml = data.accounts.map(a => `
                     <div class="px-5 py-4 flex justify-between items-center hover:bg-secondary/10">
-                        <div>
-                            <div class="font-medium text-sm">${a.accountName}</div>
-                            <div class="text-xs text-muted-foreground mt-1"><i class="fa-solid fa-circle text-[8px] text-[#10b981] mr-1"></i>已啟用</div>
-                        </div>
+                        <div><div class="font-medium text-sm">${a.accountName}</div><div class="text-xs text-muted-foreground mt-1">已啟用</div></div>
                         <button onclick="deleteAccount(${a.id})" class="text-destructive hover:opacity-80 p-2"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 `).join('');
                 document.getElementById('manageAccountList').innerHTML = manageAccHtml || '<div class="p-5 text-center text-sm text-muted-foreground">尚無帳號</div>';
 
-                // 3. 儲存文案並初次渲染
-                allTemplates = data.templates;
+                allTemplates = data.templates || [];
                 renderTemplates(allTemplates);
 
-                // 4. 渲染排程與歷史
                 const schHtml = data.schedules.map(s => `
                     <tr class="hover:bg-muted/10">
                         <td class="px-5 py-4">${s.scheduledAt}</td>
@@ -337,27 +347,52 @@
                 `}).join('');
                 document.getElementById('historyTable').innerHTML = histHtml || '<tr><td colspan="4" class="px-5 py-8 text-center text-muted-foreground">尚無歷史紀錄</td></tr>';
 
-                // 5. 渲染計費用量
-                document.getElementById('usageCount').innerText = data.usage;
-                let cost = Math.max(0, (data.usage - 100) * 0.5); // 假設前 100 篇免費，之後每篇 0.5
+                // 計費與用量顯示
+                const usage = data.usage.postCount || 0;
+                const cost = parseFloat(data.usage.totalCost || 0);
+                const price = parseFloat(data.billing.pricePerPost);
+                const quota = parseInt(data.billing.freeQuota);
+                
+                document.getElementById('usageCount').innerText = usage;
                 document.getElementById('usageCost').innerText = cost.toFixed(1);
+                document.getElementById('freeQuotaText').innerText = `每月免費額度: ${quota} 篇`;
+                document.getElementById('pricePerPostText').innerText = `每篇超額發文: $${price}`;
 
-            } catch(e) { console.error("資料載入失敗", e); }
+                // 同步填充管理員設定表單的預設值
+                if(!document.getElementById('adminPrice').value) document.getElementById('adminPrice').value = price;
+                if(!document.getElementById('adminQuota').value) document.getElementById('adminQuota').value = quota;
+
+            } catch(e) {}
         }
 
-        // --- 帳號管理功能 ---
-        async function addAccount() {
-            const name = document.getElementById('newAccName').value;
-            const token = document.getElementById('newAccToken').value;
-            if(!name || !token) return showAlert('請填寫完整資訊', false);
+        // --- 管理員專區邏輯 ---
+        async function loadAdminData() {
             try {
-                const res = await fetch('/api/accounts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accountName:name, accessToken:token}) });
-                if(res.ok) { showAlert('帳號綁定成功', true); document.getElementById('newAccName').value=''; document.getElementById('newAccToken').value=''; loadDashboardData(); }
-            } catch(e) { showAlert('新增失敗', false); }
+                const res = await fetch('/api/admin/dashboard');
+                const data = await res.json();
+                const usersHtml = data.users.map(u => {
+                    const roleBadge = u.role === 'admin' ? '<span class="text-destructive bg-destructive/10 px-2 py-1 rounded text-[10px]">管理員</span>' : '<span class="text-muted-foreground bg-secondary px-2 py-1 rounded text-[10px]">一般</span>';
+                    return `
+                    <tr class="hover:bg-muted/10">
+                        <td class="px-5 py-3 text-muted-foreground">#${u.id}</td>
+                        <td class="px-5 py-3 font-medium text-foreground">${u.username}</td>
+                        <td class="px-5 py-3">${roleBadge}</td>
+                        <td class="px-5 py-3 font-mono text-primary">${u.currentUsage} 篇</td>
+                        <td class="px-5 py-3"><button class="text-muted-foreground hover:text-white px-2 py-1 border border-border rounded text-xs">管理</button></td>
+                    </tr>
+                `}).join('');
+                document.getElementById('adminUsersTable').innerHTML = usersHtml || '<tr><td colspan="5" class="px-5 py-4 text-center text-muted-foreground">無資料</td></tr>';
+            } catch(e) {}
         }
-        async function deleteAccount(id) {
-            if(!confirm('確定要刪除此帳號嗎？(相關排程將無法發布)')) return;
-            try { await fetch(`/api/accounts/${id}`, {method:'DELETE'}); showAlert('帳號已刪除', true); loadDashboardData(); } catch(e){}
+
+        async function updateAdminSettings() {
+            const p = document.getElementById('adminPrice').value;
+            const q = document.getElementById('adminQuota').value;
+            try {
+                await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pricePerPost: p, freeQuota: q}) });
+                showAlert('全域計費設定已更新', true);
+                loadDashboardData();
+            } catch(e) { showAlert('更新失敗', false); }
         }
 
         // --- 文案篩選功能 ---
@@ -375,7 +410,7 @@
                     <button onclick="useTemplate('${t.content.replace(/'/g, "\\'")}')" class="w-full py-2 text-sm text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-all font-medium">套用此文案</button>
                 </div>
             `).join('');
-            document.getElementById('templatesGrid').innerHTML = html || '<div class="col-span-3 text-center py-10 text-muted-foreground">找不到符合的文案</div>';
+            document.getElementById('templatesGrid').innerHTML = html || '<div class="col-span-3 text-center py-10 text-muted-foreground">目前沒有找到相關文案。</div>';
         }
 
         function filterTemplates() {
@@ -396,29 +431,38 @@
             window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
-        // --- 圖片上傳 (S3 模擬) ---
+        // --- 帳號與發文功能 ---
+        async function addAccount() {
+            const name = document.getElementById('newAccName').value;
+            const token = document.getElementById('newAccToken').value;
+            if(!name || !token) return showAlert('請填寫完整資訊', false);
+            try {
+                const res = await fetch('/api/accounts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accountName:name, accessToken:token}) });
+                if(res.ok) { showAlert('帳號綁定成功', true); document.getElementById('newAccName').value=''; document.getElementById('newAccToken').value=''; loadDashboardData(); }
+            } catch(e) { showAlert('新增失敗', false); }
+        }
+        
+        async function deleteAccount(id) {
+            if(!confirm('確定刪除此帳號嗎？')) return;
+            try { await fetch(`/api/accounts/${id}`, {method:'DELETE'}); loadDashboardData(); } catch(e){}
+        }
+
         async function uploadImage(e) {
             const file = e.target.files[0];
             if(!file) return;
             const btn = document.getElementById('uploadBtn');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 上傳中...';
             try {
-                // 模擬呼叫後端 S3 API
                 const res = await fetch('/api/upload', {method:'POST'});
                 const data = await res.json();
                 currentUploadedImageUrl = data.url;
                 document.getElementById('imagePreview').src = currentUploadedImageUrl;
                 document.getElementById('imagePreviewContainer').classList.remove('hidden');
-            } catch(e) { showAlert('圖片上傳失敗', false); }
-            btn.innerHTML = '<i class="fa-solid fa-image"></i> 上傳圖片 (S3)';
-            e.target.value = ''; // 允許重複上傳同檔
+            } catch(e) { showAlert('上傳失敗', false); }
+            btn.innerHTML = '<i class="fa-solid fa-image"></i> 上傳圖片 (S3)'; e.target.value = '';
         }
-        function removeImage() {
-            currentUploadedImageUrl = '';
-            document.getElementById('imagePreviewContainer').classList.add('hidden');
-        }
+        function removeImage() { currentUploadedImageUrl = ''; document.getElementById('imagePreviewContainer').classList.add('hidden'); }
 
-        // --- AI 生成 ---
         async function generateAI() {
             const btn = document.getElementById('aiBtn');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
@@ -426,14 +470,13 @@
                 const res = await fetch('/api/generate-ai', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({topic:'網路行銷'})});
                 const data = await res.json();
                 document.getElementById('composeContent').value = data.content;
-            } catch(e) { showAlert('AI 生成失敗', false); }
+            } catch(e) { showAlert('AI 失敗', false); }
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI 智能生成';
         }
 
-        // --- 發文與排程操作 ---
         async function cancelSchedule(id) {
             if(!confirm('確定取消排程？')) return;
-            try { await fetch(`/api/schedule/${id}`, {method:'DELETE'}); showAlert('排程已取消', true); loadDashboardData(); } catch(e){}
+            try { await fetch(`/api/schedule/${id}`, {method:'DELETE'}); loadDashboardData(); } catch(e){}
         }
 
         async function submitPost(isImmediate) {
@@ -451,7 +494,7 @@
             } else {
                 const d = document.getElementById('scheduleDate').value;
                 const t = document.getElementById('scheduleTime').value;
-                if(!d || !t) return showAlert('請選擇排程時間！', false);
+                if(!d || !t) return showAlert('請選擇時間！', false);
                 scheduledAt = `${d} ${t}:00`;
             }
 
@@ -461,20 +504,12 @@
 
             try {
                 const payload = { content, scheduledAt, accountId: selectedAccount.value };
-                if (currentUploadedImageUrl) payload.imageUrl = currentUploadedImageUrl; // 加上圖片
-
-                const response = await fetch('/api/schedule', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                if (currentUploadedImageUrl) payload.imageUrl = currentUploadedImageUrl;
+                const response = await fetch('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if(response.ok) {
-                    showAlert(isImmediate ? '任務已送出！約 1 分鐘後自動發布。' : '排程設定成功！', true);
-                    document.getElementById('composeContent').value = '';
-                    removeImage();
-                    setDefaultTime();
-                } else {
-                    showAlert('儲存失敗', false);
-                }
+                    showAlert(isImmediate ? '任務送出！1分鐘後自動發布' : '排程成功！', true);
+                    document.getElementById('composeContent').value = ''; removeImage(); setDefaultTime(); loadDashboardData();
+                } else { showAlert('儲存失敗', false); }
             } catch (e) { showAlert('連線錯誤', false); } 
             finally { btn.innerHTML = origText; btn.disabled = false; }
         }

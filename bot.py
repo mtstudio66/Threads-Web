@@ -69,11 +69,6 @@ def init_db():
                 category VARCHAR(64) NOT NULL, usageCount INT DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # 為已存在的表添加唯一索引（如果尚未存在）
-        try:
-            cursor.execute("ALTER TABLE trending_templates ADD UNIQUE INDEX idx_title (title)")
-        except mysql.connector.errors.ProgrammingError:
-            pass  # 索引已存在，忽略錯誤
 
         # 【新增】使用者表與計費設定表
         cursor.execute("""
@@ -127,8 +122,7 @@ def init_db():
                 ("程式日常", "解完了一個大 Bug！身為工程師的小確幸 💻🎉", "科技"),
                 ("搞笑廢文", "我不是在上班，我是在為我的退休生活籌備資金 💸😂", "搞笑")
             ]
-            for t in templates:
-                cursor.execute("INSERT IGNORE INTO trending_templates (title, content, category) VALUES (%s, %s, %s)", t)
+            cursor.executemany("INSERT IGNORE INTO trending_templates (title, content, category) VALUES (%s, %s, %s)", templates)
             logger.info("✅ 熱門文案模板已載入！")
             
         db.commit()

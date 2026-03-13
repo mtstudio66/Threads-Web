@@ -10,14 +10,13 @@ from datetime import datetime
 import mysql.connector
 from flask import Flask, request, jsonify, send_file
 
-# --- 1. 設定日誌 ---
+# --- 設定日誌 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
-# --- 2. 初始化 Flask 網頁伺服器 ---
 app = Flask(__name__)
 
-# --- 3. 常數與環境變數 ---
+# --- 常數與環境變數 ---
 THREADS_API_URL = "https://graph.threads.net/v1.0/me/threads"
 CHECK_INTERVAL_SECONDS = 60
 
@@ -33,14 +32,14 @@ def get_db_connection():
     )
 
 def init_db():
-    """自動建立所有 SaaS 系統需要的資料表與預設資料"""
+    """建立 SaaS 系統完整資料庫結構"""
     db = None
     cursor = None
     try:
         db = get_db_connection()
         cursor = db.cursor()
         
-        # 建立帳號表
+        # 1. 帳號表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS threads_accounts (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -51,14 +50,13 @@ def init_db():
             )
         """)
         
-        # 建立排程表
+        # 2. 排程表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS scheduled_posts (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                userId INT DEFAULT 1,
                 accountId INT NOT NULL,
                 content TEXT NOT NULL,
-                imageUrls JSON,
+                imageUrl TEXT,
                 scheduledAt TIMESTAMP NOT NULL,
                 status VARCHAR(20) DEFAULT 'pending',
                 postId INT,
@@ -67,13 +65,13 @@ def init_db():
             )
         """)
 
-        # 建立發文歷史表
+        # 3. 歷史表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS posts (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                userId INT DEFAULT 1,
                 accountId INT NOT NULL,
                 content TEXT NOT NULL,
+                imageUrl TEXT,
                 threadsPostId VARCHAR(128),
                 status VARCHAR(20),
                 errorMessage TEXT,
@@ -82,7 +80,7 @@ def init_db():
             )
         """)
 
-        # 建立熱門文案表
+        # 4. 熱門文案表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS trending_templates (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -93,34 +91,40 @@ def init_db():
                 createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # 5. 計費用量表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_usage (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                month VARCHAR(7) NOT NULL,
+                postCount INT DEFAULT 0,
+                totalCost DECIMAL(10,4) DEFAULT 0,
+                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        """)
         
-        # 預設測試帳號
-        cursor.execute("SELECT COUNT(*) FROM threads_accounts")
-        if cursor.fetchone()[0] == 0:
-            cursor.execute("INSERT INTO threads_accounts (accountName, accessToken) VALUES ('@預設帳號', 'mock_token')")
-            
-        # 預設 12 個熱門文案模板
+        # --- 預設資料寫入 (防呆修復機制) ---
+        # 如果文案庫是空的，強制寫入 12 筆資料
         cursor.execute("SELECT COUNT(*) FROM trending_templates")
         if cursor.fetchone()[0] == 0:
             templates = [
                 ("早安勵志", "早安！今天也是充滿希望的一天，持續往目標前進吧！✨", "勵志"),
                 ("晚安語錄", "辛苦了一天，好好休息，明天我們繼續閃耀。🌙", "勵志"),
+                ("突破自我", "不要害怕失敗，每一次跌倒都是為了跳得更高！💪", "勵志"),
                 ("美食分享", "今天解鎖了這家超讚的餐廳！這個味道真的讓人難以忘懷 🤤🍲", "美食"),
                 ("咖啡日常", "用一杯拿鐵開啟美好的一天 ☕️ 大家的早晨都需要一點咖啡因！", "美食"),
+                ("深夜食堂", "宵夜時間到！這碗泡麵加蛋簡直是人間美味 🍜🔥", "美食"),
                 ("旅行風景", "暫時逃離城市的喧囂，這裡的風景真的太美了 ⛰️✈️", "旅行"),
                 ("週末出遊", "週末就是要出門走走！大家這個週末有什麼計畫呢？🚗", "旅行"),
+                ("說走就走", "機票買了就出發！有時候旅行就是需要一股衝動 🎫🌍", "旅行"),
                 ("AI 趨勢", "AI 發展真的太快了，未來的科技趨勢讓人期待又敬畏 🤖🚀", "科技"),
                 ("程式日常", "解完了一個大 Bug！身為工程師的小確幸 💻🎉", "科技"),
-                ("健身打卡", "汗水不會背叛你！今天的訓練順利完成 💪🏋️‍♀️", "生活"),
-                ("閱讀心得", "最近讀完這本書，收穫滿滿，強烈推薦給大家！📚💡", "生活"),
-                ("搞笑廢文", "我不是在上班，我是在為我的退休生活籌備資金 💸😂", "搞笑"),
-                ("寵物日常", "看看我家這個小可愛，今天又在搗蛋了 🐶🐱❤️", "搞笑")
+                ("搞笑廢文", "我不是在上班，我是在為我的退休生活籌備資金 💸😂", "搞笑")
             ]
             cursor.executemany("INSERT INTO trending_templates (title, content, category) VALUES (%s, %s, %s)", templates)
+            logger.info("✅ 已自動載入 12 筆熱門文案模板！")
             
         db.commit()
-        logger.info("✅ 資料庫結構與預設資料初始化完成！")
-        
     except Exception as e:
         logger.error(f"❌ 初始化資料庫失敗: {e}")
     finally:
@@ -128,7 +132,7 @@ def init_db():
         if db and db.is_connected(): db.close()
 
 # ==========================================
-# 網頁與 API 路由設定
+# API 路由設定 (Frontend UI 專用)
 # ==========================================
 
 @app.route('/')
@@ -137,126 +141,141 @@ def index():
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard_data():
-    """取得所有前端需要的資料：帳號、排程、歷史、文案"""
+    """取得所有前端需要的資料"""
     db = None
     cursor = None
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
         
-        cursor.execute("SELECT id, accountName FROM threads_accounts WHERE isActive = 1")
+        cursor.execute("SELECT id, accountName, isActive FROM threads_accounts")
         accounts = cursor.fetchall()
         
         cursor.execute("SELECT id, title, content, category, usageCount FROM trending_templates ORDER BY usageCount DESC")
         templates = cursor.fetchall()
         
         cursor.execute("""
-            SELECT sp.id, sp.content, sp.scheduledAt, sp.status, ta.accountName 
-            FROM scheduled_posts sp
-            JOIN threads_accounts ta ON sp.accountId = ta.id
-            ORDER BY sp.scheduledAt DESC LIMIT 20
+            SELECT sp.id, sp.content, sp.imageUrl, sp.scheduledAt, sp.status, ta.accountName 
+            FROM scheduled_posts sp LEFT JOIN threads_accounts ta ON sp.accountId = ta.id
+            WHERE sp.status = 'pending' ORDER BY sp.scheduledAt ASC LIMIT 50
         """)
         schedules = cursor.fetchall()
         
         cursor.execute("""
             SELECT p.id, p.content, p.status, p.publishedAt, p.errorMessage, ta.accountName 
-            FROM posts p
-            JOIN threads_accounts ta ON p.accountId = ta.id
-            ORDER BY p.publishedAt DESC LIMIT 20
+            FROM posts p LEFT JOIN threads_accounts ta ON p.accountId = ta.id
+            ORDER BY p.publishedAt DESC LIMIT 50
         """)
         history = cursor.fetchall()
+
+        # 簡單統計當月用量
+        current_month = datetime.now().strftime('%Y-%m')
+        cursor.execute("SELECT postCount FROM user_usage WHERE month = %s", (current_month,))
+        usage_row = cursor.fetchone()
+        usage_count = usage_row['postCount'] if usage_row else 0
         
         return jsonify({
             "accounts": accounts,
             "templates": templates,
             "schedules": schedules,
-            "history": history
+            "history": history,
+            "usage": usage_count
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         if cursor: cursor.close()
-        if db and db.is_connected(): db.close()
+        if db: db.close()
 
-@app.route('/api/schedule', methods=['POST'])
-def save_schedule():
-    """新增排程或立即發文"""
+@app.route('/api/accounts', methods=['POST'])
+def add_account():
+    """新增 Threads 帳號"""
     data = request.json
-    content = data.get('content')
-    scheduled_at = data.get('scheduledAt')
-    account_id = data.get('accountId', 1)
+    name = data.get('accountName')
+    token = data.get('accessToken')
+    if not name or not token: return jsonify({"message": "資料不完整"}), 400
     
-    if not content or not scheduled_at:
-        return jsonify({"message": "資料不完整"}), 400
-        
-    db = None
-    cursor = None
     try:
         db = get_db_connection()
         cursor = db.cursor()
-        
-        query = "INSERT INTO scheduled_posts (accountId, content, scheduledAt, status) VALUES (%s, %s, %s, 'pending')"
-        cursor.execute(query, (account_id, content, scheduled_at))
+        cursor.execute("INSERT INTO threads_accounts (accountName, accessToken) VALUES (%s, %s)", (name, token))
         db.commit()
-        return jsonify({"message": "✅ 排程設定成功！"}), 200
-    except Exception as e:
-        return jsonify({"message": f"❌ 儲存失敗: {e}"}), 500
+        return jsonify({"message": "帳號新增成功"}), 200
     finally:
-        if cursor: cursor.close()
-        if db and db.is_connected(): db.close()
+        if db: db.close()
+
+@app.route('/api/accounts/<int:acc_id>', methods=['DELETE'])
+def delete_account(acc_id):
+    """刪除帳號"""
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("DELETE FROM threads_accounts WHERE id = %s", (acc_id,))
+        db.commit()
+        return jsonify({"message": "帳號已刪除"}), 200
+    finally:
+        if db: db.close()
+
+@app.route('/api/schedule', methods=['POST'])
+def save_schedule():
+    """新增排程發文"""
+    data = request.json
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        query = "INSERT INTO scheduled_posts (accountId, content, imageUrl, scheduledAt, status) VALUES (%s, %s, %s, %s, 'pending')"
+        cursor.execute(query, (data.get('accountId'), data.get('content'), data.get('imageUrl'), data.get('scheduledAt')))
+        db.commit()
+        return jsonify({"message": "排程設定成功！"}), 200
+    finally:
+        if db: db.close()
 
 @app.route('/api/schedule/<int:post_id>', methods=['DELETE'])
 def cancel_schedule(post_id):
     """取消排程"""
-    db = None
-    cursor = None
     try:
         db = get_db_connection()
         cursor = db.cursor()
         cursor.execute("UPDATE scheduled_posts SET status = 'cancelled' WHERE id = %s", (post_id,))
         db.commit()
         return jsonify({"message": "排程已取消"}), 200
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
     finally:
-        if cursor: cursor.close()
-        if db and db.is_connected(): db.close()
+        if db: db.close()
+
+@app.route('/api/upload', methods=['POST'])
+def mock_s3_upload():
+    """模擬 S3 圖片上傳 (回傳佔位圖片 URL)"""
+    time.sleep(1.5) # 模擬上傳延遲
+    return jsonify({"url": "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?q=80&w=600&auto=format&fit=crop"}), 200
 
 @app.route('/api/generate-ai', methods=['POST'])
 def generate_ai():
-    """模擬 AI 文案生成功能 (實際可串接 OpenAI)"""
     topic = request.json.get('topic', '隨機主題')
-    mock_ai_text = f"【AI生成】這是一段關於「{topic}」的優質 Threads 文案！快來和我一起討論吧！✨ #AI寫作"
-    time.sleep(1) # 模擬 AI 思考時間
+    mock_ai_text = f"【AI智能生成】這是一段關於「{topic}」的優質 Threads 文案！不僅能吸引眼球，還能增加互動率喔！✨ #AI寫作"
+    time.sleep(1.5)
     return jsonify({"content": mock_ai_text}), 200
 
 # ==========================================
 # 背景發文機器人
 # ==========================================
 
-def fetch_due_scheduled_posts(cursor):
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    cursor.execute("""
-        SELECT sp.id, sp.accountId, sp.content, ta.accessToken 
-        FROM scheduled_posts sp
-        JOIN threads_accounts ta ON sp.accountId = ta.id
-        WHERE sp.status = 'pending' AND sp.scheduledAt <= %s AND ta.isActive = 1
-    """, (now,))
-    return cursor.fetchall()
-
-def post_to_threads(content, access_token):
-    # 此處保留 Threads API 呼叫邏輯。若 token 無效會返回 False 並記錄。
-    if access_token == 'mock_token':
-        return False, "測試帳號無法真實發文，請至資料庫更換真實 Token"
+def post_to_threads(content, image_url, access_token):
+    if 'mock' in access_token.lower() or '請之後' in access_token:
+        return False, "無效的測試 Token，請至「帳號管理」綁定真實 Token"
     
     try:
-        create_payload = {"media_type": "TEXT", "text": content, "access_token": access_token}
+        # 判斷是純文字還是圖片發文
+        media_type = "IMAGE" if image_url else "TEXT"
+        create_payload = {"media_type": media_type, "text": content, "access_token": access_token}
+        if image_url: create_payload["image_url"] = image_url
+            
         create_response = requests.post(THREADS_API_URL, data=create_payload, timeout=15).json()
         if 'id' not in create_response: return False, str(create_response)
         
         publish_payload = {"access_token": access_token}
         publish_url = f"https://graph.threads.net/v1.0/{create_response['id']}/publish"
         publish_response = requests.post(publish_url, data=publish_payload, timeout=15).json()
+        
         if 'id' in publish_response: return True, publish_response['id']
         return False, str(publish_response)
     except Exception as e:
@@ -268,25 +287,40 @@ def process_posts():
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
-        posts = fetch_due_scheduled_posts(cursor)
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        cursor.execute("""
+            SELECT sp.id, sp.accountId, sp.content, sp.imageUrl, ta.accessToken 
+            FROM scheduled_posts sp
+            JOIN threads_accounts ta ON sp.accountId = ta.id
+            WHERE sp.status = 'pending' AND sp.scheduledAt <= %s AND ta.isActive = 1
+        """, (now,))
+        posts = cursor.fetchall()
         
         for post in posts:
             post_id = post['id']
             cursor.execute("UPDATE scheduled_posts SET status = 'processing' WHERE id = %s", (post_id,))
             db.commit()
             
-            success, result = post_to_threads(post['content'], post['accessToken'])
+            success, result = post_to_threads(post['content'], post['imageUrl'], post['accessToken'])
             
             if success:
                 logger.info(f"發文成功！Post ID: {result}")
                 cursor.execute("""
-                    INSERT INTO posts (accountId, content, threadsPostId, status, publishedAt)
-                    VALUES (%s, %s, %s, 'published', NOW())
-                """, (post['accountId'], post['content'], result))
+                    INSERT INTO posts (accountId, content, imageUrl, threadsPostId, status, publishedAt)
+                    VALUES (%s, %s, %s, %s, 'published', NOW())
+                """, (post['accountId'], post['content'], post['imageUrl'], result))
+                
+                # 更新計費用量表
+                current_month = datetime.now().strftime('%Y-%m')
+                cursor.execute("""
+                    INSERT INTO user_usage (month, postCount) VALUES (%s, 1)
+                    ON DUPLICATE KEY UPDATE postCount = postCount + 1, totalCost = totalCost + 0.5
+                """, (current_month,))
+                
                 cursor.execute("UPDATE scheduled_posts SET status = 'published', postId = %s WHERE id = %s", (cursor.lastrowid, post_id))
             else:
                 logger.error(f"發文失敗: {result}")
-                # 紀錄到歷史表，標記為失敗
                 cursor.execute("""
                     INSERT INTO posts (accountId, content, status, errorMessage, publishedAt)
                     VALUES (%s, %s, 'failed', %s, NOW())

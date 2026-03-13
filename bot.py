@@ -25,9 +25,13 @@ CHECK_INTERVAL_SECONDS = 60
 
 DB_HOST = os.getenv("MYSQL_HOST", "localhost")
 DB_PORT = int(os.getenv("MYSQL_PORT", 3306))
-DB_USER = os.getenv("MYSQL_USER", "root")
+DB_USER = os.getenv("MYSQL_USERNAME") or os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
+
+# 絕對路徑讀取 index.html，避免快取問題
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INDEX_FILE = os.path.join(BASE_DIR, 'index.html')
 
 def get_db_connection():
     return mysql.connector.connect(
@@ -304,7 +308,7 @@ def init_db():
 
 @app.route('/')
 def index():
-    response = make_response(send_file('index.html'))
+    response = make_response(send_file(INDEX_FILE))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'

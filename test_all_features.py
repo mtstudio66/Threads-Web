@@ -29,7 +29,7 @@ sys.modules['mysql'] = MagicMock()
 sys.modules['mysql.connector'] = MockMySQLConnector()
 
 # Now import the app
-from bot import app, hash_password, verify_password
+from bot import app, hash_password, verify_password, INDEX_FILE
 
 
 class TestPasswordHashing(unittest.TestCase):
@@ -83,7 +83,7 @@ class TestIndexAndStaticFiles(unittest.TestCase):
             from flask import Response
             mock_send.return_value = Response('index.html content', mimetype='text/html')
             response = self.app.get('/')
-            mock_send.assert_called_once_with('index.html')
+            mock_send.assert_called_once_with(INDEX_FILE)
             assert response.headers.get('Cache-Control') == 'no-cache, no-store, must-revalidate'
             assert response.headers.get('Pragma') == 'no-cache'
             assert response.headers.get('Expires') == '0'

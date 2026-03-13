@@ -11,13 +11,15 @@ import secrets
 import requests
 from datetime import datetime
 import mysql.connector
-from flask import Flask, request, jsonify, send_file, make_response
+from flask import Flask, request, jsonify, make_response
 
 # --- 1. 設定日誌 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+# 停用 Flask 預設的靜態檔案快取
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # --- 2. 常數與環境變數 ---
 THREADS_API_URL = "https://graph.threads.net/v1.0/me/threads"
@@ -29,7 +31,7 @@ DB_USER = os.getenv("MYSQL_USERNAME") or os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
 
-# 絕對路徑讀取 index.html，避免快取問題
+# 絕對路徑讀取 index.html
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_FILE = os.path.join(BASE_DIR, 'index.html')
 
@@ -177,7 +179,7 @@ def init_db():
             """, (DB_DATABASE, table_name, column_name))
             return cursor.fetchone()[0] > 0
         
-        # 確保 users 表有 password 欄位 (舊版可能沒有)
+        # 確保 users 表有 password 欄位
         if not column_exists('users', 'password'):
             logger.info("偵測到 users 表缺少 password 欄位，正在新增...")
             cursor.execute("ALTER TABLE users ADD COLUMN password VARCHAR(255) NOT NULL DEFAULT ''")
@@ -224,23 +226,18 @@ def init_db():
         # 1. 確保有預設管理員與計費設定
         cursor.execute("SELECT COUNT(*) FROM users")
         if cursor.fetchone()[0] == 0:
-            # 預設密碼: admin123 (生產環境請更改) - 使用雜湊儲存
             admin_hash = hash_password('admin123')
             user_hash = hash_password('test123')
             cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'admin'), (%s, %s, 'user')", 
                           ('Admin', admin_hash, 'TestUser', user_hash))
         else:
-            # 修復現有用戶的空密碼 (舊版遷移時可能沒有密碼)
             cursor.execute("SELECT id, username, role FROM users WHERE password = '' OR password IS NULL")
             users_without_password = cursor.fetchall()
             if users_without_password:
                 logger.info(f"偵測到 {len(users_without_password)} 個用戶沒有密碼，正在設定預設密碼...")
-                logger.warning("⚠️ 預設密碼為 admin123，請盡快登入後更改密碼！")
                 for user_id, username, role in users_without_password:
-                    # 所有用戶預設密碼為 admin123，請盡快更改
                     default_hash = hash_password('admin123')
                     cursor.execute("UPDATE users SET password = %s WHERE id = %s", (default_hash, user_id))
-                    logger.info(f"✅ 已為用戶 {username} (ID: {user_id}, 角色: {role}) 設定預設密碼")
         
         cursor.execute("SELECT COUNT(*) FROM billing_settings")
         if cursor.fetchone()[0] == 0:
@@ -265,13 +262,11 @@ def init_db():
         if cursor.fetchone()[0] == 0:
             cursor.execute("INSERT INTO usdt_settings (walletAddress, networkType, minPaymentAmount) VALUES ('TRX_WALLET_ADDRESS_HERE', 'TRC20', 10.00)")
 
-        # 2. 【強制修復文案庫】只要少於 12 筆，代表資料損毀，全部清空重寫！
+        # 4. 【強制修復文案庫】
         cursor.execute("SELECT COUNT(*) FROM trending_templates")
         template_count = cursor.fetchone()[0]
-        logger.info(f"目前文案庫有 {template_count} 筆資料")
         if template_count < 12:
             logger.info("檢測到文案庫資料不完整，正在執行強制重置與寫入...")
-            # 使用 INSERT IGNORE 避免多工作進程競爭時的重複插入錯誤
             templates = [
                 ("早安勵志", "早安！今天也是充滿希望的一天，持續往目標前進吧！✨", "勵志"),
                 ("晚安語錄", "辛苦了一天，好好休息，明天我們繼續閃耀。🌙", "勵志"),
@@ -308,11 +303,22 @@ def init_db():
 
 @app.route('/')
 def index():
-    response = make_response(send_file(INDEX_FILE))
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+    """強制每次讀取最新 index.html，徹底阻斷快取"""
+    try:
+        # 直接從硬碟讀取檔案內容
+        with open(INDEX_FILE, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        response = make_response(content)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        
+        # 設定極端嚴格的無快取標頭 (No-Store)
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '-1'
+        return response
+    except FileNotFoundError:
+        return make_response("找不到 index.html 檔案，請確認檔案是否已上傳至正確位置。", 404)
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard_data():
@@ -342,7 +348,6 @@ def get_dashboard_data():
         """)
         history = cursor.fetchall()
 
-        # 取得目前計費設定與個人用量
         cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
         billing = cursor.fetchone() or {"pricePerPost": 0.5, "freeQuota": 100}
         
@@ -355,30 +360,27 @@ def get_dashboard_data():
             "history": history, "billing": billing, "usage": usage
         }), 200
     except Exception as e:
+        logger.error(f"Dashboard API Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
     finally:
         if cursor: cursor.close()
         if db: db.close()
 
+# -------- 管理員與其他 API 保留原樣 --------
 @app.route('/api/admin/dashboard', methods=['GET'])
 def get_admin_data():
-    """管理員專屬：獲取所有使用者統計與系統設定"""
     db = None
     cursor = None
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
-        
         cursor.execute("SELECT id, username, role, createdAt FROM users")
         users = cursor.fetchall()
-        
-        # 加上每個使用者的本月用量
         current_month = datetime.now().strftime('%Y-%m')
         for u in users:
             cursor.execute("SELECT postCount FROM user_usage WHERE userId = %s AND month = %s", (u['id'], current_month))
             row = cursor.fetchone()
             u['currentUsage'] = row['postCount'] if row else 0
-            
         return jsonify({"users": users}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -388,7 +390,6 @@ def get_admin_data():
 
 @app.route('/api/admin/settings', methods=['POST'])
 def update_billing_settings():
-    """管理員專屬：更新計費設定"""
     data = request.json
     try:
         db = get_db_connection()
@@ -402,28 +403,19 @@ def update_billing_settings():
         if cursor: cursor.close()
         if db: db.close()
 
-# ==========================================
-# 管理員認證與帳號管理 API
-# ==========================================
-
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
-    """管理員登入"""
     data = request.json
     username = data.get('username')
     password = data.get('password')
-    
     if not username or not password:
         return jsonify({"success": False, "message": "請輸入帳號密碼"}), 400
-    
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
         cursor.execute("SELECT id, username, password, role FROM users WHERE username = %s AND role = 'admin'", (username,))
         user = cursor.fetchone()
-        
         if user and verify_password(password, user['password']):
-            # 不回傳密碼雜湊值
             return jsonify({
                 "success": True, 
                 "message": "登入成功", 
@@ -438,7 +430,6 @@ def admin_login():
 
 @app.route('/api/admin/users', methods=['GET'])
 def get_all_users():
-    """取得所有使用者列表"""
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
@@ -450,18 +441,14 @@ def get_all_users():
             ORDER BY u.id ASC
         """)
         users = cursor.fetchall()
-        
         current_month = datetime.now().strftime('%Y-%m')
         for u in users:
             cursor.execute("SELECT postCount, totalCost FROM user_usage WHERE userId = %s AND month = %s", (u['id'], current_month))
             row = cursor.fetchone()
             u['currentUsage'] = row['postCount'] if row else 0
             u['totalCost'] = float(row['totalCost']) if row else 0
-            
-            # 取得權限
             cursor.execute("SELECT permission FROM user_permissions WHERE userId = %s", (u['id'],))
             u['permissions'] = [p['permission'] for p in cursor.fetchall()]
-            
         return jsonify({"users": users}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -471,21 +458,17 @@ def get_all_users():
 
 @app.route('/api/admin/users', methods=['POST'])
 def create_user():
-    """新增使用者或管理員"""
     data = request.json
     username = data.get('username')
     password = data.get('password')
     email = data.get('email', '')
     role = data.get('role', 'user')
     planId = data.get('planId')
-    
     if not username or not password:
         return jsonify({"success": False, "message": "帳號密碼為必填"}), 400
-    
     try:
         db = get_db_connection()
         cursor = db.cursor()
-        # 密碼使用雜湊儲存
         hashed_password = hash_password(password)
         cursor.execute(
             "INSERT INTO users (username, password, email, role, planId) VALUES (%s, %s, %s, %s, %s)",
@@ -501,39 +484,28 @@ def create_user():
 
 @app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
-    """更新使用者資料"""
     data = request.json
     try:
         db = get_db_connection()
         cursor = db.cursor()
-        
-        updates = []
-        values = []
+        updates, values = [], []
         if 'username' in data:
-            updates.append("username = %s")
-            values.append(data['username'])
+            updates.append("username = %s"); values.append(data['username'])
         if 'password' in data and data['password']:
-            updates.append("password = %s")
-            # 密碼使用雜湊儲存
-            values.append(hash_password(data['password']))
+            updates.append("password = %s"); values.append(hash_password(data['password']))
         if 'email' in data:
-            updates.append("email = %s")
-            values.append(data['email'])
+            updates.append("email = %s"); values.append(data['email'])
         if 'role' in data:
-            updates.append("role = %s")
-            values.append(data['role'])
+            updates.append("role = %s"); values.append(data['role'])
         if 'planId' in data:
-            updates.append("planId = %s")
-            values.append(data['planId'])
+            updates.append("planId = %s"); values.append(data['planId'])
         if 'isActive' in data:
-            updates.append("isActive = %s")
-            values.append(data['isActive'])
+            updates.append("isActive = %s"); values.append(data['isActive'])
         
         if updates:
             values.append(user_id)
             cursor.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = %s", values)
             db.commit()
-        
         return jsonify({"success": True, "message": "使用者資料已更新"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -543,7 +515,6 @@ def update_user(user_id):
 
 @app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
-    """刪除使用者"""
     try:
         db = get_db_connection()
         cursor = db.cursor()
@@ -558,13 +529,8 @@ def delete_user(user_id):
         if cursor: cursor.close()
         if db: db.close()
 
-# ==========================================
-# 使用者權限管理 API
-# ==========================================
-
 @app.route('/api/admin/permissions/<int:user_id>', methods=['GET'])
 def get_user_permissions(user_id):
-    """取得使用者權限"""
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
@@ -579,21 +545,15 @@ def get_user_permissions(user_id):
 
 @app.route('/api/admin/permissions/<int:user_id>', methods=['POST'])
 def grant_permission(user_id):
-    """授予使用者權限"""
     data = request.json
     permission = data.get('permission')
-    granted_by = data.get('grantedBy', 1)  # 預設管理員ID=1
-    
+    granted_by = data.get('grantedBy', 1)
     if not permission:
         return jsonify({"success": False, "message": "權限名稱為必填"}), 400
-    
     try:
         db = get_db_connection()
         cursor = db.cursor()
-        cursor.execute(
-            "INSERT IGNORE INTO user_permissions (userId, permission, grantedBy) VALUES (%s, %s, %s)",
-            (user_id, permission, granted_by)
-        )
+        cursor.execute("INSERT IGNORE INTO user_permissions (userId, permission, grantedBy) VALUES (%s, %s, %s)", (user_id, permission, granted_by))
         db.commit()
         return jsonify({"success": True, "message": "權限已授予"}), 200
     except Exception as e:
@@ -604,7 +564,6 @@ def grant_permission(user_id):
 
 @app.route('/api/admin/permissions/<int:user_id>/<permission>', methods=['DELETE'])
 def revoke_permission(user_id, permission):
-    """撤銷使用者權限"""
     try:
         db = get_db_connection()
         cursor = db.cursor()
@@ -617,13 +576,8 @@ def revoke_permission(user_id, permission):
         if cursor: cursor.close()
         if db: db.close()
 
-# ==========================================
-# 訂閱方案管理 API
-# ==========================================
-
 @app.route('/api/admin/plans', methods=['GET'])
 def get_subscription_plans():
-    """取得所有訂閱方案"""
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
@@ -638,25 +592,17 @@ def get_subscription_plans():
 
 @app.route('/api/admin/plans', methods=['POST'])
 def create_plan():
-    """新增訂閱方案"""
     data = request.json
     try:
         db = get_db_connection()
         cursor = db.cursor()
-        
         features = json.dumps(data.get('features', [])) if isinstance(data.get('features'), list) else data.get('features', '[]')
-        
         cursor.execute("""
             INSERT INTO subscription_plans (planName, description, priceUsdt, monthlyPostLimit, aiGenerationLimit, features, isActive)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (
-            data.get('planName'),
-            data.get('description', ''),
-            data.get('priceUsdt', 0),
-            data.get('monthlyPostLimit', 100),
-            data.get('aiGenerationLimit', 50),
-            features,
-            data.get('isActive', True)
+            data.get('planName'), data.get('description', ''), data.get('priceUsdt', 0),
+            data.get('monthlyPostLimit', 100), data.get('aiGenerationLimit', 50), features, data.get('isActive', True)
         ))
         db.commit()
         return jsonify({"success": True, "message": "方案新增成功", "planId": cursor.lastrowid}), 200
@@ -668,28 +614,20 @@ def create_plan():
 
 @app.route('/api/admin/plans/<int:plan_id>', methods=['PUT'])
 def update_plan(plan_id):
-    """更新訂閱方案"""
     data = request.json
     try:
         db = get_db_connection()
         cursor = db.cursor()
-        
         features = json.dumps(data.get('features', [])) if isinstance(data.get('features'), list) else data.get('features')
-        
         cursor.execute("""
             UPDATE subscription_plans 
             SET planName = %s, description = %s, priceUsdt = %s, monthlyPostLimit = %s, 
                 aiGenerationLimit = %s, features = %s, isActive = %s
             WHERE id = %s
         """, (
-            data.get('planName'),
-            data.get('description'),
-            data.get('priceUsdt'),
-            data.get('monthlyPostLimit'),
-            data.get('aiGenerationLimit'),
-            features,
-            data.get('isActive', True),
-            plan_id
+            data.get('planName'), data.get('description'), data.get('priceUsdt'),
+            data.get('monthlyPostLimit'), data.get('aiGenerationLimit'), features,
+            data.get('isActive', True), plan_id
         ))
         db.commit()
         return jsonify({"success": True, "message": "方案已更新"}), 200
@@ -701,7 +639,6 @@ def update_plan(plan_id):
 
 @app.route('/api/admin/plans/<int:plan_id>', methods=['DELETE'])
 def delete_plan(plan_id):
-    """刪除訂閱方案"""
     try:
         db = get_db_connection()
         cursor = db.cursor()
@@ -714,13 +651,8 @@ def delete_plan(plan_id):
         if cursor: cursor.close()
         if db: db.close()
 
-# ==========================================
-# USDT付款設定 API
-# ==========================================
-
 @app.route('/api/admin/usdt-settings', methods=['GET'])
 def get_usdt_settings():
-    """取得USDT付款設定"""
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
@@ -735,37 +667,23 @@ def get_usdt_settings():
 
 @app.route('/api/admin/usdt-settings', methods=['POST'])
 def update_usdt_settings():
-    """更新USDT付款設定"""
     data = request.json
     try:
         db = get_db_connection()
         cursor = db.cursor()
-        
         cursor.execute("SELECT COUNT(*) FROM usdt_settings")
         count = cursor.fetchone()[0]
-        
         if count == 0:
             cursor.execute("""
                 INSERT INTO usdt_settings (walletAddress, networkType, minPaymentAmount, isActive)
                 VALUES (%s, %s, %s, %s)
-            """, (
-                data.get('walletAddress'),
-                data.get('networkType', 'TRC20'),
-                data.get('minPaymentAmount', 10.00),
-                data.get('isActive', True)
-            ))
+            """, (data.get('walletAddress'), data.get('networkType', 'TRC20'), data.get('minPaymentAmount', 10.00), data.get('isActive', True)))
         else:
             cursor.execute("""
                 UPDATE usdt_settings 
                 SET walletAddress = %s, networkType = %s, minPaymentAmount = %s, isActive = %s
                 WHERE id = 1
-            """, (
-                data.get('walletAddress'),
-                data.get('networkType', 'TRC20'),
-                data.get('minPaymentAmount', 10.00),
-                data.get('isActive', True)
-            ))
-        
+            """, (data.get('walletAddress'), data.get('networkType', 'TRC20'), data.get('minPaymentAmount', 10.00), data.get('isActive', True)))
         db.commit()
         return jsonify({"success": True, "message": "USDT設定已更新"}), 200
     except Exception as e:
@@ -774,13 +692,8 @@ def update_usdt_settings():
         if cursor: cursor.close()
         if db: db.close()
 
-# ==========================================
-# 付款記錄 API
-# ==========================================
-
 @app.route('/api/admin/payments', methods=['GET'])
 def get_payment_records():
-    """取得所有付款記錄"""
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
@@ -789,8 +702,7 @@ def get_payment_records():
             FROM payment_records pr
             LEFT JOIN users u ON pr.userId = u.id
             LEFT JOIN subscription_plans sp ON pr.planId = sp.id
-            ORDER BY pr.createdAt DESC
-            LIMIT 100
+            ORDER BY pr.createdAt DESC LIMIT 100
         """)
         payments = cursor.fetchall()
         return jsonify({"payments": payments}), 200
@@ -802,29 +714,20 @@ def get_payment_records():
 
 @app.route('/api/admin/payments/<int:payment_id>/confirm', methods=['POST'])
 def confirm_payment(payment_id):
-    """確認付款"""
     data = request.json
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
-        
-        # 取得付款資料
         cursor.execute("SELECT * FROM payment_records WHERE id = %s", (payment_id,))
         payment = cursor.fetchone()
-        
         if not payment:
             return jsonify({"success": False, "message": "找不到付款記錄"}), 404
-        
-        # 更新付款狀態
         cursor.execute("""
             UPDATE payment_records 
             SET status = 'confirmed', txHash = %s, confirmedAt = NOW()
             WHERE id = %s
         """, (data.get('txHash', ''), payment_id))
-        
-        # 更新使用者方案
         cursor.execute("UPDATE users SET planId = %s WHERE id = %s", (payment['planId'], payment['userId']))
-        
         db.commit()
         return jsonify({"success": True, "message": "付款已確認，方案已啟用"}), 200
     except Exception as e:
@@ -835,46 +738,31 @@ def confirm_payment(payment_id):
 
 @app.route('/api/user/subscribe', methods=['POST'])
 def user_subscribe():
-    """使用者訂閱方案"""
     data = request.json
     user_id = data.get('userId')
     plan_id = data.get('planId')
-    
     if not user_id or not plan_id:
         return jsonify({"success": False, "message": "使用者ID與方案ID為必填"}), 400
-    
     try:
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
-        
-        # 取得方案資料
         cursor.execute("SELECT * FROM subscription_plans WHERE id = %s", (plan_id,))
         plan = cursor.fetchone()
-        
         if not plan:
             return jsonify({"success": False, "message": "找不到此方案"}), 404
-        
-        # 如果是免費方案，直接啟用
         if float(plan['priceUsdt']) == 0:
             cursor.execute("UPDATE users SET planId = %s WHERE id = %s", (plan_id, user_id))
             db.commit()
             return jsonify({"success": True, "message": "免費方案已啟用"}), 200
-        
-        # 付費方案，建立付款記錄
         cursor.execute("""
             INSERT INTO payment_records (userId, planId, amountUsdt, status)
             VALUES (%s, %s, %s, 'pending')
         """, (user_id, plan_id, plan['priceUsdt']))
         db.commit()
-        
-        # 取得USDT收款資訊
         cursor.execute("SELECT walletAddress, networkType FROM usdt_settings WHERE isActive = TRUE LIMIT 1")
         usdt_info = cursor.fetchone()
-        
         return jsonify({
-            "success": True,
-            "message": "付款訂單已建立，請進行USDT付款",
-            "paymentId": cursor.lastrowid,
+            "success": True, "message": "付款訂單已建立，請進行USDT付款", "paymentId": cursor.lastrowid,
             "amount": float(plan['priceUsdt']),
             "walletAddress": usdt_info['walletAddress'] if usdt_info else '',
             "networkType": usdt_info['networkType'] if usdt_info else 'TRC20'
@@ -885,7 +773,6 @@ def user_subscribe():
         if cursor: cursor.close()
         if db: db.close()
 
-# --- 既有 API (帳號、排程、上傳、AI) ---
 @app.route('/api/accounts', methods=['POST'])
 def add_account():
     data = request.json
@@ -996,7 +883,6 @@ def process_posts():
                     VALUES (%s, %s, %s, %s, 'published', NOW())
                 """, (post['accountId'], post['content'], post['imageUrl'], result))
                 
-                # 計算費用並更新 user_usage (假設以 userId=1 為主)
                 cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
                 billing = cursor.fetchone()
                 price = billing[0] if billing else 0.5
@@ -1027,7 +913,7 @@ def background_worker():
         except: pass
         time.sleep(CHECK_INTERVAL_SECONDS)
 
-# 確保資料庫在任何部署方式下都會初始化
+# 確保資料庫在啟動時自動檢查並修復缺失欄位
 init_db()
 
 if __name__ == "__main__":

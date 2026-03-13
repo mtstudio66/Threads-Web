@@ -11,7 +11,7 @@ import secrets
 import requests
 from datetime import datetime
 import mysql.connector
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, make_response
 
 # --- 1. 設定日誌 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -292,7 +292,11 @@ def init_db():
 
 @app.route('/')
 def index():
-    return send_file('index.html')
+    response = make_response(send_file('index.html'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard_data():

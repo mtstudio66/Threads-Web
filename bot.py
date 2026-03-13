@@ -215,15 +215,16 @@ def init_db():
                           ('Admin', admin_hash, 'TestUser', user_hash))
         else:
             # 修復現有用戶的空密碼 (舊版遷移時可能沒有密碼)
-            cursor.execute("SELECT id, username FROM users WHERE password = '' OR password IS NULL")
+            cursor.execute("SELECT id, username, role FROM users WHERE password = '' OR password IS NULL")
             users_without_password = cursor.fetchall()
             if users_without_password:
                 logger.info(f"偵測到 {len(users_without_password)} 個用戶沒有密碼，正在設定預設密碼...")
-                for user_id, username in users_without_password:
-                    # 預設密碼為 admin123 或 test123，根據角色設定
+                logger.warning("⚠️ 預設密碼為 admin123，請盡快登入後更改密碼！")
+                for user_id, username, role in users_without_password:
+                    # 所有用戶預設密碼為 admin123，請盡快更改
                     default_hash = hash_password('admin123')
                     cursor.execute("UPDATE users SET password = %s WHERE id = %s", (default_hash, user_id))
-                    logger.info(f"✅ 已為用戶 {username} (ID: {user_id}) 設定預設密碼")
+                    logger.info(f"✅ 已為用戶 {username} (ID: {user_id}, 角色: {role}) 設定預設密碼")
         
         cursor.execute("SELECT COUNT(*) FROM billing_settings")
         if cursor.fetchone()[0] == 0:

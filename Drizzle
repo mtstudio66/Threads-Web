@@ -1,0 +1,107 @@
+import { 
+  mysqlTable, 
+  int, 
+  varchar, 
+  text, 
+  timestamp, 
+  mysqlEnum, 
+  boolean, 
+  json, 
+  decimal 
+} from 'drizzle-orm/mysql-core';
+import { sql } from 'drizzle-orm';
+
+// users 表 - 使用者帳戶
+export const users = mysqlTable('users', {
+  id: int('id').primaryKey().autoincrement(),
+  openId: varchar('openId', { length: 64 }).notNull().unique(), // Manus OAuth ID
+  name: text('name'),
+  email: varchar('email', { length: 320 }),
+  loginMethod: varchar('loginMethod', { length: 64 }),
+  role: mysqlEnum('role', ['user', 'admin']).default('user'),
+  createdAt: timestamp('createdAt').defaultNow(),
+  updatedAt: timestamp('updatedAt').defaultNow().onUpdateNow(),
+  lastSignedIn: timestamp('lastSignedIn').defaultNow()
+});
+
+// threads_accounts 表 - Threads 帳號
+export const threadsAccounts = mysqlTable('threads_accounts', {
+  id: int('id').primaryKey().autoincrement(),
+  userId: int('userId').notNull(), // 外鍵: users.id
+  accountName: varchar('accountName', { length: 128 }).notNull(),
+  threadsUserId: varchar('threadsUserId', { length: 128 }),
+  accessToken: text('accessToken').notNull(),
+  profilePictureUrl: text('profilePictureUrl'),
+  biography: text('biography'),
+  followersCount: int('followersCount').default(0),
+  isActive: boolean('isActive').default(true),
+  createdAt: timestamp('createdAt').defaultNow(),
+  updatedAt: timestamp('updatedAt').defaultNow().onUpdateNow()
+});
+
+// posts 表 - 發文歷史
+export const posts = mysqlTable('posts', {
+  id: int('id').primaryKey().autoincrement(),
+  userId: int('userId').notNull(),
+  accountId: int('accountId').notNull(), // 外鍵: threads_accounts.id
+  content: text('content').notNull(),
+  imageUrls: json('imageUrls'),
+  threadsPostId: varchar('threadsPostId', { length: 128 }),
+  status: mysqlEnum('status', ['pending', 'published', 'failed', 'scheduled']),
+  errorMessage: text('errorMessage'),
+  publishedAt: timestamp('publishedAt'),
+  scheduledAt: timestamp('scheduledAt'),
+  createdAt: timestamp('createdAt').defaultNow(),
+  updatedAt: timestamp('updatedAt').defaultNow().onUpdateNow()
+});
+
+// scheduled_posts 表 - 排程發文
+export const scheduledPosts = mysqlTable('scheduled_posts', {
+  id: int('id').primaryKey().autoincrement(),
+  userId: int('userId').notNull(),
+  accountId: int('accountId').notNull(),
+  content: text('content').notNull(),
+  imageUrls: json('imageUrls'),
+  scheduledAt: timestamp('scheduledAt').notNull(),
+  status: mysqlEnum('status', ['pending', 'processing', 'published', 'failed', 'cancelled']),
+  postId: int('postId'), // 外鍵: posts.id (執行後)
+  errorMessage: text('errorMessage'),
+  createdAt: timestamp('createdAt').defaultNow(),
+  updatedAt: timestamp('updatedAt').defaultNow().onUpdateNow()
+});
+
+// trending_templates 表 - 熱門文案
+export const trendingTemplates = mysqlTable('trending_templates', {
+  id: int('id').primaryKey().autoincrement(),
+  title: varchar('title', { length: 256 }).notNull(),
+  content: text('content').notNull(),
+  category: varchar('category', { length: 64 }).notNull(),
+  tags: json('tags'),
+  usageCount: int('usageCount').default(0),
+  likeCount: int('likeCount').default(0),
+  isActive: boolean('isActive').default(true),
+  createdAt: timestamp('createdAt').defaultNow()
+});
+
+// billing_settings 表 - 計費設定
+export const billingSettings = mysqlTable('billing_settings', {
+  id: int('id').primaryKey().autoincrement(),
+  pricePerPost: decimal('pricePerPost', { precision: 10, scale: 4 }).default('0'),
+  currency: varchar('currency', { length: 8 }).default('TWD'),
+  freePostsPerMonth: int('freePostsPerMonth').default(0),
+  isEnabled: boolean('isEnabled').default(false),
+  updatedAt: timestamp('updatedAt').defaultNow().onUpdateNow(),
+  updatedBy: int('updatedBy') // 更新者 ID
+});
+
+// user_usage 表 - 使用者用量統計
+export const userUsage = mysqlTable('user_usage', {
+  id: int('id').primaryKey().autoincrement(),
+  userId: int('userId').notNull(),
+  month: varchar('month', { length: 7 }).notNull(), // YYYY-MM
+  postCount: int('postCount').default(0),
+  scheduledCount: int('scheduledCount').default(0),
+  totalCost: decimal('totalCost', { precision: 10, scale: 4 }).default('0'),
+  createdAt: timestamp('createdAt').defaultNow(),
+  updatedAt: timestamp('updatedAt').defaultNow().onUpdateNow()
+});

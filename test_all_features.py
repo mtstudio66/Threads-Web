@@ -12,6 +12,8 @@ import unittest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
+TAIPEI_TZ_OFFSET = -480
+
 # 設置環境變數以模擬資料庫連線
 os.environ['MYSQL_HOST'] = 'localhost'
 os.environ['MYSQL_PORT'] = '3306'
@@ -29,7 +31,7 @@ sys.modules['mysql'] = MagicMock()
 sys.modules['mysql.connector'] = MockMySQLConnector()
 
 # Now import the app
-from bot import app, hash_password, verify_password, INDEX_FILE
+from bot import app, hash_password, verify_password, INDEX_FILE, normalize_scheduled_at
 
 
 class TestPasswordHashing(unittest.TestCase):
@@ -96,12 +98,13 @@ class MockDBCursor:
         self.results = results or []
         self.lastrowid = 1
         self._index = 0
+        self.executed = []
         
     def execute(self, query, params=None):
-        pass
+        self.executed.append((query, params))
     
     def executemany(self, query, params=None):
-        pass
+        self.executed.append((query, params))
     
     def fetchone(self):
         if self.results and self._index < len(self.results):
@@ -582,20 +585,64 @@ class TestAccountAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         print("✅ 新增帳號缺少欄位時正確回傳 400")
     
+    @patch('bot.validate_threads_token')
     @patch('bot.get_db_connection')
-    def test_add_account_success(self, mock_db):
+    def test_add_account_success(self, mock_db, mock_validate):
         """測試新增帳號成功"""
         cursor = MockDBCursor()
         mock_db.return_value = MockDBConnection(cursor)
+        mock_validate.return_value = (True, 'Token 驗證成功', {'username': 'test_account'})
         
         response = self.app.post('/api/accounts',
                                  data=json.dumps({
                                      'accountName': 'test_account',
                                      'accessToken': 'test_token_123'
-                                 }),
-                                 content_type='application/json')
+                                  }),
+                                  content_type='application/json')
         self.assertEqual(response.status_code, 200)
         print("✅ 新增帳號成功")
+
+    @patch('bot.validate_threads_token')
+    def test_validate_account_token_invalid(self, mock_validate):
+        """測試驗證帳號 Token 失敗"""
+        mock_validate.return_value = (False, '權杖已過期', None)
+
+        response = self.app.post('/api/accounts/validate-token',
+                                 data=json.dumps({'accessToken': 'bad_token'}),
+                                 content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.data)
+        self.assertIn('Token 驗證失敗', data['message'])
+        print("✅ 驗證無效 Token 時正確回傳 400")
+
+    @patch('bot.validate_threads_token')
+    def test_validate_account_token_success(self, mock_validate):
+        """測試驗證帳號 Token 成功"""
+        mock_validate.return_value = (True, 'Token 驗證成功', {'username': 'demo_user'})
+
+        response = self.app.post('/api/accounts/validate-token',
+                                 data=json.dumps({'accessToken': 'good_token'}),
+                                 content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data['username'], 'demo_user')
+        print("✅ 驗證 Token 成功")
+
+    @patch('bot.validate_threads_token')
+    def test_add_account_invalid_token(self, mock_validate):
+        """測試新增帳號時攔截無效 Token"""
+        mock_validate.return_value = (False, '權杖已過期', None)
+
+        response = self.app.post('/api/accounts',
+                                 data=json.dumps({
+                                     'accountName': 'test_account',
+                                     'accessToken': 'bad_token'
+                                 }),
+                                 content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.data)
+        self.assertIn('Token 驗證失敗', data['message'])
+        print("✅ 新增帳號時會先驗證 Token")
     
     @patch('bot.get_db_connection')
     def test_delete_account_success(self, mock_db):
@@ -615,21 +662,45 @@ class TestScheduleAPI(unittest.TestCase):
         self.app = app.test_client()
         self.app.testing = True
     
+    @patch('bot.validate_threads_token')
     @patch('bot.get_db_connection')
-    def test_save_schedule_success(self, mock_db):
+    def test_save_schedule_success(self, mock_db, mock_validate):
         """測試新增排程成功"""
-        cursor = MockDBCursor()
+        cursor = MockDBCursor([{'accessToken': 'good_token'}])
         mock_db.return_value = MockDBConnection(cursor)
+        mock_validate.return_value = (True, 'Token 驗證成功', {'username': 'demo_user'})
         
         response = self.app.post('/api/schedule',
                                  data=json.dumps({
                                      'accountId': 1,
                                      'content': '測試內容',
-                                     'scheduledAt': '2024-12-31 12:00:00'
+                                     'scheduledAt': '2024-12-31T12:00:00Z',
+                                     'timezoneOffsetMinutes': -480
+                                  }),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(cursor.executed[-1][1][3], datetime(2024, 12, 31, 12, 0, 0))
+        print("✅ 新增排程成功")
+
+    @patch('bot.validate_threads_token')
+    @patch('bot.get_db_connection')
+    def test_save_schedule_invalid_token(self, mock_db, mock_validate):
+        """測試新增排程時攔截無效 Token"""
+        cursor = MockDBCursor([{'accessToken': 'bad_token'}])
+        mock_db.return_value = MockDBConnection(cursor)
+        mock_validate.return_value = (False, '權杖已過期', None)
+
+        response = self.app.post('/api/schedule',
+                                 data=json.dumps({
+                                     'accountId': 1,
+                                     'content': '測試內容',
+                                     'scheduledAt': '2024-12-31T12:00:00Z'
                                  }),
                                  content_type='application/json')
-        self.assertEqual(response.status_code, 200)
-        print("✅ 新增排程成功")
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.data)
+        self.assertIn('Token 無效', data['message'])
+        print("✅ 新增排程時會先驗證帳號 Token")
     
     @patch('bot.get_db_connection')
     def test_cancel_schedule_success(self, mock_db):
@@ -706,6 +777,16 @@ class TestBillingSettingsAPI(unittest.TestCase):
         print("✅ 更新計費設定成功")
 
 
+class TestSchedulingUtilities(unittest.TestCase):
+    """測試排程時間工具"""
+
+    def test_normalize_scheduled_at_converts_local_time_to_utc(self):
+        """測試排程時間會依照時區轉成 UTC"""
+        normalized = normalize_scheduled_at('2026-03-14 09:44:11', TAIPEI_TZ_OFFSET)
+        self.assertEqual(normalized, datetime(2026, 3, 14, 1, 44, 11))
+        print("✅ 排程時間會正確換算成 UTC")
+
+
 def run_all_tests():
     """執行所有測試並輸出結果摘要"""
     print("\n" + "="*60)
@@ -732,6 +813,7 @@ def run_all_tests():
         TestScheduleAPI,
         TestUtilityAPI,
         TestBillingSettingsAPI,
+        TestSchedulingUtilities,
     ]
     
     for test_class in test_classes:

@@ -146,7 +146,11 @@
                                 <label class="text-xs text-muted-foreground block mb-1">Threads API Token</label>
                                 <input type="password" id="newAccToken" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
                             </div>
-                            <button onclick="addAccount()" class="w-full py-2 text-sm font-medium bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-link mr-1"></i> 確認綁定</button>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button onclick="validateToken()" id="validateTokenBtn" class="w-full py-2 text-sm font-medium bg-secondary hover:bg-secondary/80 rounded-md transition-colors"><i class="fa-solid fa-shield-check mr-1"></i> 驗證 Token</button>
+                                <button onclick="addAccount()" id="addAccountBtn" class="w-full py-2 text-sm font-medium bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-link mr-1"></i> 確認綁定</button>
+                            </div>
+                            <p class="text-xs text-muted-foreground">系統會先驗證 Token 是否仍可用，再允許綁定或建立排程。</p>
                         </div>
                     </div>
                     
@@ -1442,10 +1446,46 @@
             const name = document.getElementById('newAccName').value;
             const token = document.getElementById('newAccToken').value;
             if(!name || !token) return showAlert('請填寫完整資訊', false);
+            const btn = document.getElementById('addAccountBtn');
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 驗證中...'; btn.disabled = true;
             try {
                 const res = await fetch('/api/accounts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accountName:name, accessToken:token}) });
-                if(res.ok) { showAlert('帳號綁定成功', true); document.getElementById('newAccName').value=''; document.getElementById('newAccToken').value=''; loadDashboardData(); }
+                const data = await res.json().catch(() => ({}));
+                if(res.ok) {
+                    showAlert(data.message || '帳號綁定成功', true);
+                    document.getElementById('newAccName').value=''; document.getElementById('newAccToken').value=''; loadDashboardData();
+                } else {
+                    showAlert(data.message || '新增失敗', false);
+                }
             } catch(e) { showAlert('新增失敗', false); }
+            finally { btn.innerHTML = origText; btn.disabled = false; }
+        }
+
+        async function validateToken() {
+            const token = document.getElementById('newAccToken').value;
+            if(!token) return showAlert('請先輸入 Threads API Token', false);
+            const btn = document.getElementById('validateTokenBtn');
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 驗證中...'; btn.disabled = true;
+            try {
+                const res = await fetch('/api/accounts/validate-token', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({accessToken:token})
+                });
+                const data = await res.json().catch(() => ({}));
+                if(res.ok) {
+                    const accountText = data.username ? `（@${data.username}）` : '';
+                    showAlert(`${data.message || 'Token 驗證成功'}${accountText}`, true);
+                } else {
+                    showAlert(data.message || 'Token 驗證失敗', false);
+                }
+            } catch(e) {
+                showAlert('Token 驗證失敗', false);
+            } finally {
+                btn.innerHTML = origText; btn.disabled = false;
+            }
         }
         
         async function deleteAccount(id) {
@@ -1495,13 +1535,12 @@
             let scheduledAt;
             if(isImmediate) {
                 const now = new Date(); now.setMinutes(now.getMinutes() + 1);
-                const tzOffset = now.getTimezoneOffset() * 60000;
-                scheduledAt = new Date(now - tzOffset).toISOString().slice(0, 19).replace('T', ' ');
+                scheduledAt = now.toISOString();
             } else {
                 const d = document.getElementById('scheduleDate').value;
                 const t = document.getElementById('scheduleTime').value;
                 if(!d || !t) return showAlert('請選擇時間！', false);
-                scheduledAt = `${d} ${t}:00`;
+                scheduledAt = new Date(`${d}T${t}:00`).toISOString();
             }
 
             const btn = document.getElementById('submitBtn');
@@ -1509,13 +1548,14 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...'; btn.disabled = true;
 
             try {
-                const payload = { content, scheduledAt, accountId: selectedAccount.value };
+                const payload = { content, scheduledAt, accountId: selectedAccount.value, timezoneOffsetMinutes: new Date().getTimezoneOffset() };
                 if (currentUploadedImageUrl) payload.imageUrl = currentUploadedImageUrl;
                 const response = await fetch('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const data = await response.json().catch(() => ({}));
                 if(response.ok) {
-                    showAlert(isImmediate ? '任務送出！1分鐘後自動發布' : '排程成功！', true);
+                    showAlert(data.message || (isImmediate ? '任務送出！1分鐘後自動發布' : '排程成功！'), true);
                     document.getElementById('composeContent').value = ''; removeImage(); setDefaultTime(); loadDashboardData();
-                } else { showAlert('儲存失敗', false); }
+                } else { showAlert(data.message || '儲存失敗', false); }
             } catch (e) { showAlert('連線錯誤', false); } 
             finally { btn.innerHTML = origText; btn.disabled = false; }
         }

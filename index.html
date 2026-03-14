@@ -632,7 +632,6 @@
         }
 
         const TAIPEI_TIME_ZONE = 'Asia/Taipei';
-        const TAIPEI_TIME_ZONE_OFFSET_HOURS = 8;
         const DEFAULT_SCHEDULE_OFFSET_MS = 10 * 60 * 1000;
         const IMMEDIATE_SCHEDULE_OFFSET_MS = 60 * 1000;
         const TAIPEI_TIMEZONE_OFFSET_MINUTES = -480; // 依 JS timezoneOffsetMinutes 慣例，位於 UTC 東側的台北需傳 -480 給後端
@@ -645,7 +644,8 @@
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
-            hour12: false
+            hour12: false,
+            hourCycle: 'h23'
         });
 
         function getTaipeiDateTimeParts(date = new Date()) {
@@ -661,23 +661,41 @@
             return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
         }
 
+        function createTaipeiDate(year, month, day, hour, minute, second = '00') {
+            // 先用同樣的年月日時做一個 UTC 猜測值，再用台北 formatter 回推實際 offset，
+            // 這樣可把「沒有時區資訊、但語意上是台北本地時間」的字串轉成正確 Date 物件。
+            const utcGuess = Date.UTC(
+                Number(year),
+                Number(month) - 1,
+                Number(day),
+                Number(hour),
+                Number(minute),
+                Number(second)
+            );
+            const guessParts = getTaipeiDateTimeParts(new Date(utcGuess));
+            const guessAsTaipeiUtc = Date.UTC(
+                Number(guessParts.year),
+                Number(guessParts.month) - 1,
+                Number(guessParts.day),
+                Number(guessParts.hour),
+                Number(guessParts.minute),
+                Number(guessParts.second)
+            );
+
+            return new Date(utcGuess - (guessAsTaipeiUtc - utcGuess));
+        }
+
         function parseTimestamp(value) {
             if (!value) return null;
             if (value instanceof Date) return value;
 
             const normalizedValue = String(value).trim();
-            // 支援後端常見的 YYYY-MM-DD HH:mm:ss / YYYY-MM-DDTHH:mm:ss（資料庫回傳的台北本地時間）
+            // 支援後端常見的 YYYY-MM-DD HH:mm:ss / YYYY-MM-DDTHH:mm:ss，
+            // 這些資料庫字串沒有附帶時區資訊，這裡要避免再誤判成 UTC 而跳掉 8 小時。
             const timestampMatch = normalizedValue.match(UTC_TIMESTAMP_PATTERN);
             if (timestampMatch) {
                 const [, year, month, day, hour, minute, second = '00'] = timestampMatch;
-                return new Date(Date.UTC(
-                    Number(year),
-                    Number(month) - 1,
-                    Number(day),
-                    Number(hour) - TAIPEI_TIME_ZONE_OFFSET_HOURS,
-                    Number(minute),
-                    Number(second)
-                ));
+                return createTaipeiDate(year, month, day, hour, minute, second);
             }
 
             const parsedDate = new Date(normalizedValue);

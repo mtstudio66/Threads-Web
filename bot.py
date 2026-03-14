@@ -9,9 +9,9 @@ import threading
 import hashlib
 import secrets
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import mysql.connector
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, send_file
 
 # --- 1. 設定日誌 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -23,6 +23,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # --- 2. 常數與環境變數 ---
 THREADS_API_URL = "https://graph.threads.net/v1.0/me/threads"
+THREADS_ME_URL = "https://graph.threads.net/v1.0/me"
 CHECK_INTERVAL_SECONDS = 60
 
 # ==========================================
@@ -298,17 +299,10 @@ def init_db():
 def index():
     """強制每次讀取最新 index.html，徹底阻斷快取"""
     try:
-        # 直接從硬碟讀取檔案內容
-        with open(INDEX_FILE, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        response = make_response(content)
-        response.headers['Content-Type'] = 'text/html; charset=utf-8'
-        
-        # 設定極端嚴格的無快取標頭 (No-Store)
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+        response = make_response(send_file(INDEX_FILE))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '-1'
+        response.headers['Expires'] = '0'
         return response
     except FileNotFoundError:
         return make_response("找不到 index.html 檔案，請確認檔案是否已上傳至正確位置。", 404)
@@ -813,14 +807,35 @@ def user_subscribe():
 def add_account():
     data = request.json
     if not data.get('accountName') or not data.get('accessToken'): return jsonify({"message": "資料不完整"}), 400
+    is_valid, token_message, token_info = validate_threads_token(data['accessToken'])
+    if not is_valid:
+        return jsonify({"message": f"Token 驗證失敗：{token_message}"}), 400
     try:
         db = get_db_connection()
         cursor = db.cursor()
         cursor.execute("INSERT INTO threads_accounts (accountName, accessToken) VALUES (%s, %s)", (data['accountName'], data['accessToken']))
         db.commit()
-        return jsonify({"message": "帳號新增成功"}), 200
+        display_name = token_info.get('username') if isinstance(token_info, dict) else None
+        message = f"帳號新增成功（已驗證 @{display_name}）" if display_name else "帳號新增成功"
+        return jsonify({"message": message}), 200
     finally:
         if db: db.close()
+
+@app.route('/api/accounts/validate-token', methods=['POST'])
+def validate_account_token():
+    data = request.json or {}
+    access_token = (data.get('accessToken') or '').strip()
+    if not access_token:
+        return jsonify({"message": "請輸入 Threads API Token"}), 400
+
+    is_valid, message, token_info = validate_threads_token(access_token)
+    if not is_valid:
+        return jsonify({"message": f"Token 驗證失敗：{message}"}), 400
+
+    return jsonify({
+        "message": "Token 驗證成功",
+        "username": token_info.get('username') if isinstance(token_info, dict) else None
+    }), 200
 
 @app.route('/api/accounts/<int:acc_id>', methods=['DELETE'])
 def delete_account(acc_id):
@@ -835,15 +850,36 @@ def delete_account(acc_id):
 
 @app.route('/api/schedule', methods=['POST'])
 def save_schedule():
-    data = request.json
+    data = request.json or {}
+    if not data.get('accountId') or not data.get('content') or not data.get('scheduledAt'):
+        return jsonify({"message": "資料不完整"}), 400
+
+    db = None
+    cursor = None
     try:
+        scheduled_at = normalize_scheduled_at(data.get('scheduledAt'), data.get('timezoneOffsetMinutes'))
         db = get_db_connection()
-        cursor = db.cursor()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("SELECT accessToken FROM threads_accounts WHERE id = %s AND isActive = 1 LIMIT 1", (data.get('accountId'),))
+        account = cursor.fetchone()
+        if not account:
+            return jsonify({"message": "找不到可用的 Threads 帳號"}), 404
+
+        is_valid, token_message, _ = validate_threads_token(account['accessToken'])
+        if not is_valid:
+            return jsonify({"message": f"無法建立排程：此帳號的 Token 無效，{token_message}"}), 400
+
         query = "INSERT INTO scheduled_posts (accountId, content, imageUrl, scheduledAt, status) VALUES (%s, %s, %s, %s, 'pending')"
-        cursor.execute(query, (data.get('accountId'), data.get('content'), data.get('imageUrl'), data.get('scheduledAt')))
+        cursor.execute(query, (data.get('accountId'), data.get('content'), data.get('imageUrl'), scheduled_at))
         db.commit()
         return jsonify({"message": "排程設定成功！"}), 200
+    except ValueError as e:
+        return jsonify({"message": str(e)}), 400
+    except Exception as e:
+        logger.error(f"save_schedule 執行失敗: {e}")
+        return jsonify({"message": "排程設定失敗，請稍後再試"}), 500
     finally:
+        if cursor: cursor.close()
         if db: db.close()
 
 @app.route('/api/schedule/<int:post_id>', methods=['DELETE'])
@@ -871,6 +907,67 @@ def generate_ai():
 # ==========================================
 # 背景發文機器人
 # ==========================================
+def get_threads_error_message(response_data, fallback_message):
+    if isinstance(response_data, dict):
+        error = response_data.get('error')
+        if isinstance(error, dict) and error.get('message'):
+            return error['message']
+        if response_data.get('message'):
+            return response_data['message']
+    return fallback_message
+
+def validate_threads_token(access_token):
+    access_token = (access_token or '').strip()
+    if not access_token:
+        return False, "缺少 Token", None
+    if 'mock' in access_token.lower() or '請之後' in access_token:
+        return False, "無效的測試 Token", None
+
+    try:
+        response = requests.get(
+            THREADS_ME_URL,
+            params={"fields": "id,username", "access_token": access_token},
+            timeout=10
+        )
+        response_data = response.json()
+    except requests.RequestException as e:
+        return False, f"無法連線 Threads API：{e}", None
+    except ValueError:
+        return False, "Threads API 回傳了無法解析的內容", None
+
+    if isinstance(response_data, dict) and response_data.get('id'):
+        return True, "Token 驗證成功", response_data
+    return False, get_threads_error_message(response_data, "Threads Token 無效或已過期"), response_data
+
+def normalize_scheduled_at(scheduled_at, timezone_offset_minutes=None):
+    if not scheduled_at:
+        raise ValueError("請選擇時間！")
+
+    parsed_datetime = None
+    for dt_format in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            parsed_datetime = datetime.strptime(scheduled_at, dt_format)
+            break
+        except ValueError:
+            continue
+
+    if parsed_datetime is None:
+        try:
+            parsed_datetime = datetime.fromisoformat(scheduled_at.replace('Z', '+00:00'))
+        except ValueError as e:
+            raise ValueError("排程時間格式不正確") from e
+
+    if parsed_datetime.tzinfo is not None:
+        return parsed_datetime.astimezone(timezone.utc).replace(tzinfo=None)
+
+    if timezone_offset_minutes is None:
+        return parsed_datetime
+
+    try:
+        return parsed_datetime + timedelta(minutes=int(timezone_offset_minutes))
+    except (TypeError, ValueError) as e:
+        raise ValueError("時區資訊格式不正確") from e
+
 def post_to_threads(content, image_url, access_token):
     if 'mock' in access_token.lower() or '請之後' in access_token:
         return False, "無效的測試 Token"
@@ -880,14 +977,15 @@ def post_to_threads(content, image_url, access_token):
         if image_url: create_payload["image_url"] = image_url
             
         create_response = requests.post(THREADS_API_URL, data=create_payload, timeout=15).json()
-        if 'id' not in create_response: return False, str(create_response)
+        if 'id' not in create_response:
+            return False, get_threads_error_message(create_response, str(create_response))
         
         publish_payload = {"access_token": access_token}
         publish_url = f"https://graph.threads.net/v1.0/{create_response['id']}/publish"
         publish_response = requests.post(publish_url, data=publish_payload, timeout=15).json()
         
         if 'id' in publish_response: return True, publish_response['id']
-        return False, str(publish_response)
+        return False, get_threads_error_message(publish_response, str(publish_response))
     except Exception as e: return False, str(e)
 
 def process_posts():
@@ -896,7 +994,7 @@ def process_posts():
     try:
         db = get_db_connection(retries=1)
         cursor = db.cursor(dictionary=True)
-        now = datetime.now()
+        now = datetime.utcnow()
         
         cursor.execute("""
             SELECT sp.id, sp.accountId, sp.content, sp.imageUrl, ta.accessToken 
@@ -907,36 +1005,44 @@ def process_posts():
         
         for post in posts:
             post_id = post['id']
-            cursor.execute("UPDATE scheduled_posts SET status = 'processing' WHERE id = %s", (post_id,))
-            db.commit()
-            
-            success, result = post_to_threads(post['content'], post['imageUrl'], post['accessToken'])
-            
-            if success:
-                logger.info(f"發文成功！Post ID: {result}")
-                cursor.execute("""
-                    INSERT INTO posts (accountId, content, imageUrl, threadsPostId, status, publishedAt)
-                    VALUES (%s, %s, %s, %s, 'published', NOW())
-                """, (post['accountId'], post['content'], post['imageUrl'], result))
+            try:
+                cursor.execute("UPDATE scheduled_posts SET status = 'processing' WHERE id = %s", (post_id,))
+                db.commit()
                 
-                cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
-                billing = cursor.fetchone()
-                price = billing[0] if billing else 0.5
+                success, result = post_to_threads(post['content'], post['imageUrl'], post['accessToken'])
                 
-                current_month = datetime.now().strftime('%Y-%m')
-                cursor.execute("""
-                    INSERT INTO user_usage (userId, month, postCount, totalCost) VALUES (1, %s, 1, 0)
-                    ON DUPLICATE KEY UPDATE 
-                    postCount = postCount + 1, 
-                    totalCost = CASE WHEN postCount >= (SELECT freeQuota FROM billing_settings LIMIT 1) THEN totalCost + %s ELSE totalCost END
-                """, (current_month, price))
-                
-                cursor.execute("UPDATE scheduled_posts SET status = 'published', postId = %s WHERE id = %s", (cursor.lastrowid, post_id))
-            else:
-                logger.error(f"發文失敗: {result}")
-                cursor.execute("INSERT INTO posts (accountId, content, status, errorMessage, publishedAt) VALUES (%s, %s, 'failed', %s, NOW())", (post['accountId'], post['content'], 'failed', result))
-                cursor.execute("UPDATE scheduled_posts SET status = 'failed', errorMessage = %s WHERE id = %s", (result, post_id))
-            db.commit()
+                if success:
+                    logger.info(f"發文成功！Post ID: {result}")
+                    cursor.execute("""
+                        INSERT INTO posts (accountId, content, imageUrl, threadsPostId, status, publishedAt)
+                        VALUES (%s, %s, %s, %s, 'published', NOW())
+                    """, (post['accountId'], post['content'], post['imageUrl'], result))
+                    published_post_id = cursor.lastrowid
+                    
+                    cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
+                    billing = cursor.fetchone() or {}
+                    price = billing.get('pricePerPost', 0.5) if isinstance(billing, dict) else 0.5
+                    free_quota = billing.get('freeQuota', 100) if isinstance(billing, dict) else 100
+                    
+                    current_month = datetime.utcnow().strftime('%Y-%m')
+                    cursor.execute("""
+                        INSERT INTO user_usage (userId, month, postCount, totalCost) VALUES (1, %s, 1, 0)
+                        ON DUPLICATE KEY UPDATE 
+                        postCount = postCount + 1, 
+                        totalCost = CASE WHEN postCount >= %s THEN totalCost + %s ELSE totalCost END
+                    """, (current_month, free_quota, price))
+                    
+                    cursor.execute("UPDATE scheduled_posts SET status = 'published', postId = %s, errorMessage = NULL WHERE id = %s", (published_post_id, post_id))
+                else:
+                    logger.error(f"發文失敗: {result}")
+                    cursor.execute("INSERT INTO posts (accountId, content, status, errorMessage, publishedAt) VALUES (%s, %s, 'failed', %s, NOW())", (post['accountId'], post['content'], result))
+                    cursor.execute("UPDATE scheduled_posts SET status = 'failed', errorMessage = %s WHERE id = %s", (result, post_id))
+                db.commit()
+            except Exception as post_error:
+                db.rollback()
+                logger.error(f"處理排程 {post_id} 失敗: {post_error}")
+                cursor.execute("UPDATE scheduled_posts SET status = 'failed', errorMessage = %s WHERE id = %s", (str(post_error), post_id))
+                db.commit()
     except Exception as e:
         logger.error(f"process_posts 執行失敗: {e}")
     finally:

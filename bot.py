@@ -11,9 +11,10 @@ import hashlib
 import secrets
 import requests
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urljoin, urlparse
 import mysql.connector
 from werkzeug.utils import secure_filename
-from flask import Flask, request, jsonify, make_response, send_file, send_from_directory
+from flask import Flask, request, jsonify, make_response, send_file, send_from_directory, has_request_context
 
 # --- 1. 設定日誌 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -67,6 +68,26 @@ def format_datetime_for_api(value):
             value = value.astimezone(TW_TZ).replace(tzinfo=None)
         return value.strftime(DATETIME_DISPLAY_FORMAT)
     return value
+
+def normalize_image_url(image_url, base_url=None):
+    normalized = (image_url or '').strip()
+    if not normalized:
+        return None
+
+    parsed = urlparse(normalized)
+    if parsed.scheme in ('http', 'https') and parsed.netloc:
+        return normalized
+
+    resolved_base_url = (base_url or '').strip()
+    if not resolved_base_url and has_request_context():
+        resolved_base_url = request.host_url
+
+    if resolved_base_url:
+        if not resolved_base_url.endswith('/'):
+            resolved_base_url = f"{resolved_base_url}/"
+        return urljoin(resolved_base_url, normalized.lstrip('/'))
+
+    return normalized
 
 def serialize_datetime_fields(records, *field_names):
     serialized_records = []
@@ -878,8 +899,9 @@ def save_schedule():
         if not is_valid:
             return jsonify({"message": f"無法建立排程：此帳號的 Token 無效，{token_message}"}), 400
 
+        normalized_image_url = normalize_image_url(data.get('imageUrl'))
         query = "INSERT INTO scheduled_posts (accountId, content, imageUrl, scheduledAt, status) VALUES (%s, %s, %s, %s, 'pending')"
-        cursor.execute(query, (data.get('accountId'), data.get('content'), data.get('imageUrl'), scheduled_at))
+        cursor.execute(query, (data.get('accountId'), data.get('content'), normalized_image_url, scheduled_at))
         db.commit()
         return jsonify({"message": "排程設定成功！"}), 200
     except ValueError as e:
@@ -942,7 +964,7 @@ def upload_image():
     unique_name = f"{uuid.uuid4().hex}_{safe_name}"
     save_path = os.path.join(UPLOAD_DIR, unique_name)
     file.save(save_path)
-    url = f"/uploads/{unique_name}"
+    url = normalize_image_url(f"/uploads/{unique_name}")
     return jsonify({"url": url}), 200
 
 @app.route('/uploads/<path:filename>')
@@ -1040,10 +1062,19 @@ def post_to_threads(content, image_url, access_token):
     if 'mock' in access_token.lower() or '請之後' in access_token:
         return False, "無效的測試 Token"
     try:
+        normalized_image_url = normalize_image_url(
+            image_url,
+            os.getenv('PUBLIC_BASE_URL') or os.getenv('APP_BASE_URL')
+        )
+        if normalized_image_url:
+            parsed_image_url = urlparse(normalized_image_url)
+            if parsed_image_url.scheme not in ('http', 'https') or not parsed_image_url.netloc:
+                return False, "圖片網址不是合法的公開 URL，請重新上傳圖片後再試"
+
         # 1. 建立貼文草稿 (Container)
-        media_type = "IMAGE" if image_url else "TEXT"
+        media_type = "IMAGE" if normalized_image_url else "TEXT"
         create_payload = {"media_type": media_type, "text": content, "access_token": access_token}
-        if image_url: create_payload["image_url"] = image_url
+        if normalized_image_url: create_payload["image_url"] = normalized_image_url
             
         create_response = requests.post(THREADS_API_URL, data=create_payload, timeout=15).json()
         if 'id' not in create_response:

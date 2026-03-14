@@ -35,7 +35,7 @@ sys.modules['mysql'] = MagicMock()
 sys.modules['mysql.connector'] = MockMySQLConnector()
 
 # Now import the app
-from bot import app, hash_password, verify_password, INDEX_FILE, normalize_scheduled_at
+from bot import app, hash_password, verify_password, INDEX_FILE, normalize_scheduled_at, post_to_threads
 
 
 class TestPasswordHashing(unittest.TestCase):
@@ -799,14 +799,58 @@ class TestUtilityAPI(unittest.TestCase):
             with patch('bot.UPLOAD_DIR', tmpdir):
                 png_data = self._minimal_png()
                 data = {'image': (io.BytesIO(png_data), 'test.png', 'image/png')}
-                response = self.app.post('/api/upload', data=data, content_type='multipart/form-data')
+                response = self.app.post('/api/upload', base_url='https://threads.example', data=data, content_type='multipart/form-data')
                 self.assertEqual(response.status_code, 200)
                 result = json.loads(response.data)
                 self.assertIn('url', result)
-                self.assertTrue(result['url'].startswith('/uploads/'))
+                self.assertTrue(result['url'].startswith('https://threads.example/uploads/'))
                 self.assertTrue(result['url'].endswith('.png'))
                 self.assertNotIn('unsplash.com', result['url'])
-                print("✅ 上傳圖片成功，回傳原始圖片 URL 而非固定示意圖")
+                print("✅ 上傳圖片成功，回傳可供 Threads 使用的完整圖片 URL")
+
+    @patch('bot.validate_threads_token', return_value=(True, 'ok', {'id': '123'}))
+    @patch('bot.get_db_connection')
+    def test_save_schedule_normalizes_relative_image_url(self, mock_db, mock_validate_token):
+        """測試新增排程時會把相對圖片路徑轉成完整 URL"""
+        cursor = MockDBCursor(results=[{'accessToken': 'valid-token'}])
+        mock_db.return_value = MockDBConnection(cursor)
+
+        response = self.app.post(
+            '/api/schedule',
+            base_url='https://threads.example',
+            data=json.dumps({
+                'accountId': 1,
+                'content': '測試貼文',
+                'imageUrl': '/uploads/test.png',
+                'scheduledAt': '2026-03-14 09:44:11',
+                'timezoneOffsetMinutes': TAIPEI_TZ_OFFSET,
+            }),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        insert_query, insert_params = cursor.executed[-1]
+        self.assertIn('INSERT INTO scheduled_posts', insert_query)
+        self.assertEqual(insert_params[2], 'https://threads.example/uploads/test.png')
+        print("✅ 新增排程時會儲存完整圖片 URL，避免 Threads 拒絕相對路徑")
+
+    @patch('bot.requests.post')
+    def test_post_to_threads_normalizes_relative_image_url_before_publish(self, mock_post):
+        """測試發文前會把相對圖片路徑轉成合法 URI"""
+        mock_post.side_effect = [
+            MagicMock(json=MagicMock(return_value={'id': 'creation-123'})),
+            MagicMock(json=MagicMock(return_value={'id': 'publish-456'})),
+        ]
+
+        with patch.dict(os.environ, {'PUBLIC_BASE_URL': 'https://threads.example'}, clear=False):
+            success, result = post_to_threads('測試貼文', '/uploads/test.png', 'valid-token')
+
+        self.assertTrue(success)
+        self.assertEqual(result, 'publish-456')
+        first_call = mock_post.call_args_list[0]
+        self.assertEqual(first_call.kwargs['data']['image_url'], 'https://threads.example/uploads/test.png')
+        self.assertEqual(first_call.kwargs['data']['media_type'], 'IMAGE')
+        print("✅ 發文前會把相對圖片路徑轉成 Threads 可接受的完整 URI")
 
     def test_upload_missing_file_returns_400(self):
         """測試未提供檔案時回傳 400"""

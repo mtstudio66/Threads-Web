@@ -684,6 +684,26 @@ class TestScheduleAPI(unittest.TestCase):
 
     @patch('bot.validate_threads_token')
     @patch('bot.get_db_connection')
+    def test_save_schedule_uses_taipei_time(self, mock_db, mock_validate):
+        """測試新增排程時可用台北本地時間送出"""
+        cursor = MockDBCursor([{'accessToken': 'good_token'}])
+        mock_db.return_value = MockDBConnection(cursor)
+        mock_validate.return_value = (True, 'Token 驗證成功', {'username': 'demo_user'})
+
+        response = self.app.post('/api/schedule',
+                                 data=json.dumps({
+                                     'accountId': 1,
+                                     'content': '台北時間排程',
+                                     'scheduledAt': '2026-03-14 10:00:17',
+                                     'timezoneOffsetMinutes': TAIPEI_TZ_OFFSET
+                                  }),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(cursor.executed[-1][1][3], datetime(2026, 3, 14, 2, 0, 17))
+        print("✅ 台北時間排程會正確換算並儲存")
+
+    @patch('bot.validate_threads_token')
+    @patch('bot.get_db_connection')
     def test_save_schedule_invalid_token(self, mock_db, mock_validate):
         """測試新增排程時攔截無效 Token"""
         cursor = MockDBCursor([{'accessToken': 'bad_token'}])

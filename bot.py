@@ -35,7 +35,7 @@ DB_PORT = int(os.getenv("CUSTOM_DB_PORT", 31082))
 DB_USER = os.getenv("CUSTOM_DB_USER") or os.getenv("MYSQL_USERNAME") or os.getenv("MYSQL_USER", "root")
 
 # 密碼的部分你的截圖看起來是用 CUSTOM_DB_PWD，我也幫你加進去當優先選項
-DB_PASSWORD = os.getenv("CUSTOM_DB_PWD") or os.getenv("MYSQL_PASSWORD", "")
+DB_PASSWORD = os.getenv("MYSQL_PASSWORD") or os.getenv("CUSTOM_DB_PWD", "")
 
 DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
 

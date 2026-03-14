@@ -25,18 +25,15 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 THREADS_API_URL = "https://graph.threads.net/v1.0/me/threads"
 CHECK_INTERVAL_SECONDS = 60
 
-# 強制讀取環境變數，並加上詳細的 Debug 輸出 (注意：為了安全，密碼只顯示前幾碼)
-DB_HOST = os.getenv("CUSTOM_DB_HOST") or os.getenv("MYSQL_HOST", "localhost")
-
-# 🛠️ 【修改重點 1】改抓 CUSTOM_DB_PORT，避開 Zeabur 偷偷塞的 MYSQL_PORT=3306
-DB_PORT = int(os.getenv("CUSTOM_DB_PORT", 31082))
-
-# 🛠️ 【修改重點 2】順便確保優先抓 CUSTOM_DB_USER
-DB_USER = os.getenv("CUSTOM_DB_USER") or os.getenv("MYSQL_USERNAME") or os.getenv("MYSQL_USER", "root")
-
-# 密碼的部分你的截圖看起來是用 CUSTOM_DB_PWD，我也幫你加進去當優先選項
-DB_PASSWORD = os.getenv("CUSTOM_DB_PWD") or os.getenv("MYSQL_PASSWORD", "")
-
+# ==========================================
+# 🛠️ 【重大修正】資料庫連線環境變數
+# 完全依賴 Zeabur 自動生成的環境變數 (走安全內網連線)
+# 如果你在本地端測試，請在本地端設定這些變數對應到你的外網 IP 和 31082 Port
+# ==========================================
+DB_HOST = os.getenv("MYSQL_HOST", "localhost")
+DB_PORT = int(os.getenv("MYSQL_PORT", 3306)) # 伺服器內部必定是 3306，不要寫死 31082
+DB_USER = os.getenv("MYSQL_USERNAME", "root")
+DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
 
 logger.info(f"👉 準備連線資料庫設定: HOST={DB_HOST}, PORT={DB_PORT}, USER={DB_USER}, DB={DB_DATABASE}")
@@ -937,7 +934,7 @@ def process_posts():
                 cursor.execute("UPDATE scheduled_posts SET status = 'published', postId = %s WHERE id = %s", (cursor.lastrowid, post_id))
             else:
                 logger.error(f"發文失敗: {result}")
-                cursor.execute("INSERT INTO posts (accountId, content, status, errorMessage, publishedAt) VALUES (%s, %s, 'failed', %s, NOW())", (post['accountId'], post['content'], result))
+                cursor.execute("INSERT INTO posts (accountId, content, status, errorMessage, publishedAt) VALUES (%s, %s, 'failed', %s, NOW())", (post['accountId'], post['content'], 'failed', result))
                 cursor.execute("UPDATE scheduled_posts SET status = 'failed', errorMessage = %s WHERE id = %s", (result, post_id))
             db.commit()
     except Exception as e:

@@ -109,11 +109,11 @@
 
                         <div class="grid grid-cols-2 gap-4 mb-6">
                             <div>
-                                <label class="block text-xs text-muted-foreground mb-1">排程日期 (留空=立即發)</label>
+                                <label class="block text-xs text-muted-foreground mb-1">排程日期 (台北時間，留空=立即發)</label>
                                 <input type="date" id="scheduleDate" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground css-color-scheme-dark">
                             </div>
                             <div>
-                                <label class="block text-xs text-muted-foreground mb-1">排程時間</label>
+                                <label class="block text-xs text-muted-foreground mb-1">排程時間 (台北時間)</label>
                                 <input type="time" id="scheduleTime" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground css-color-scheme-dark">
                             </div>
                         </div>
@@ -200,7 +200,7 @@
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left whitespace-nowrap md:whitespace-normal">
                             <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
-                                <tr><th class="px-5 py-3">時間</th><th class="px-5 py-3">帳號</th><th class="px-5 py-3 min-w-[200px]">內容</th><th class="px-5 py-3">操作</th></tr>
+                                <tr><th class="px-5 py-3">時間（台北）</th><th class="px-5 py-3">帳號</th><th class="px-5 py-3 min-w-[200px]">內容</th><th class="px-5 py-3">操作</th></tr>
                             </thead>
                             <tbody id="scheduleTable" class="divide-y divide-border"></tbody>
                         </table>
@@ -214,7 +214,7 @@
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left whitespace-nowrap md:whitespace-normal">
                             <thead class="text-xs text-muted-foreground bg-secondary/10 uppercase border-b border-border">
-                                <tr><th class="px-5 py-3">發布時間</th><th class="px-5 py-3">帳號</th><th class="px-5 py-3 min-w-[200px]">內容</th><th class="px-5 py-3">結果</th></tr>
+                                <tr><th class="px-5 py-3">發布時間（台北）</th><th class="px-5 py-3">帳號</th><th class="px-5 py-3 min-w-[200px]">內容</th><th class="px-5 py-3">結果</th></tr>
                             </thead>
                             <tbody id="historyTable" class="divide-y divide-border"></tbody>
                         </table>
@@ -631,13 +631,66 @@
             if(tabId === 'payments') loadPaymentRecords();
         }
 
+        const TAIPEI_TIME_ZONE = 'Asia/Taipei';
+        const DEFAULT_SCHEDULE_OFFSET_MS = 10 * 60 * 1000;
+        const IMMEDIATE_SCHEDULE_OFFSET_MS = 60 * 1000;
+        const TAIPEI_TIMEZONE_OFFSET_MINUTES = -480; // 依 JS timezoneOffsetMinutes 慣例，位於 UTC 東側的台北需傳 -480 給後端
+        const UTC_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
+        const taipeiDateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: TAIPEI_TIME_ZONE,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+
+        function getTaipeiDateTimeParts(date = new Date()) {
+            const parts = {};
+            taipeiDateTimeFormatter.formatToParts(date).forEach(({ type, value }) => {
+                if (type !== 'literal') parts[type] = value;
+            });
+            return parts;
+        }
+
+        function formatTaipeiDateTimeForApi(date = new Date()) {
+            const parts = getTaipeiDateTimeParts(date);
+            return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+        }
+
+        function parseTimestamp(value) {
+            if (!value) return null;
+            if (value instanceof Date) return value;
+
+            const normalizedValue = String(value).trim();
+            // 支援後端常見的 YYYY-MM-DD HH:mm:ss / YYYY-MM-DDTHH:mm:ss（資料庫 UTC 時間）
+            const timestampMatch = normalizedValue.match(UTC_TIMESTAMP_PATTERN);
+            if (timestampMatch) {
+                const [, year, month, day, hour, minute, second = '00'] = timestampMatch;
+                return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
+            }
+
+            const parsedDate = new Date(normalizedValue);
+            if (!Number.isNaN(parsedDate.getTime())) return parsedDate;
+
+            return null;
+        }
+
+        function formatDisplayTime(value) {
+            if (!value) return '-';
+            const parsedDate = parseTimestamp(value);
+            if (!parsedDate || Number.isNaN(parsedDate.getTime())) return escapeHtml(value);
+            const parts = getTaipeiDateTimeParts(parsedDate);
+            return `${parts.year}/${parts.month}/${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+        }
+
         function setDefaultTime() {
-            const now = new Date(); now.setMinutes(now.getMinutes() + 10);
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            document.getElementById('scheduleDate').value = `${year}-${month}-${day}`;
-            document.getElementById('scheduleTime').value = now.toTimeString().slice(0, 5);
+            const now = new Date(Date.now() + DEFAULT_SCHEDULE_OFFSET_MS);
+            const parts = getTaipeiDateTimeParts(now);
+            document.getElementById('scheduleDate').value = `${parts.year}-${parts.month}-${parts.day}`;
+            document.getElementById('scheduleTime').value = `${parts.hour}:${parts.minute}`;
         }
         setDefaultTime();
 
@@ -718,7 +771,7 @@
 
                 const schHtml = schedules.map(s => `
                     <tr class="hover:bg-muted/10">
-                        <td class="px-5 py-4">${s.scheduledAt}</td>
+                        <td class="px-5 py-4">${formatDisplayTime(s.scheduledAt)}</td>
                         <td class="px-5 py-4 font-medium text-primary">${escapeHtml(s.accountName) || '未知'}</td>
                         <td class="px-5 py-4 truncate max-w-[150px]">${s.imageUrl ? '<i class="fa-solid fa-image text-primary mr-1"></i>' : ''}${escapeHtml(s.content)}</td>
                         <td class="px-5 py-4"><button onclick="cancelSchedule(${s.id})" class="text-destructive hover:opacity-80 border border-destructive/20 bg-destructive/10 px-3 py-1.5 rounded-md text-xs"><i class="fa-solid fa-xmark mr-1"></i>取消</button></td>
@@ -730,7 +783,7 @@
                     const isSuccess = h.status === 'published';
                     return `
                     <tr class="hover:bg-muted/10">
-                        <td class="px-5 py-4">${h.publishedAt || '-'}</td>
+                        <td class="px-5 py-4">${formatDisplayTime(h.publishedAt)}</td>
                         <td class="px-5 py-4 font-medium text-primary">${escapeHtml(h.accountName) || '未知'}</td>
                         <td class="px-5 py-4 truncate max-w-[150px]" title="${escapeHtml(h.errorMessage||'')}">${escapeHtml(h.content)}</td>
                         <td class="px-5 py-4"><span class="px-2.5 py-1 text-xs rounded-md border ${isSuccess?'bg-primary/10 text-primary border-primary/20':'bg-destructive/10 text-destructive border-destructive/20'}"><i class="fa-solid ${isSuccess?'fa-check':'fa-xmark'} mr-1"></i>${isSuccess?'成功':'失敗'}</span></td>
@@ -1534,13 +1587,12 @@
             
             let scheduledAt;
             if(isImmediate) {
-                const now = new Date(); now.setMinutes(now.getMinutes() + 1);
-                scheduledAt = now.toISOString();
+                scheduledAt = formatTaipeiDateTimeForApi(new Date(Date.now() + IMMEDIATE_SCHEDULE_OFFSET_MS));
             } else {
                 const d = document.getElementById('scheduleDate').value;
                 const t = document.getElementById('scheduleTime').value;
                 if(!d || !t) return showAlert('請選擇時間！', false);
-                scheduledAt = new Date(`${d}T${t}:00`).toISOString();
+                scheduledAt = `${d} ${t}:00`;
             }
 
             const btn = document.getElementById('submitBtn');
@@ -1548,7 +1600,7 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...'; btn.disabled = true;
 
             try {
-                const payload = { content, scheduledAt, accountId: selectedAccount.value, timezoneOffsetMinutes: new Date().getTimezoneOffset() };
+                const payload = { content, scheduledAt, accountId: selectedAccount.value, timezoneOffsetMinutes: TAIPEI_TIMEZONE_OFFSET_MINUTES };
                 if (currentUploadedImageUrl) payload.imageUrl = currentUploadedImageUrl;
                 const response = await fetch('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const data = await response.json().catch(() => ({}));

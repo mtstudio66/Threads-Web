@@ -27,7 +27,7 @@ CHECK_INTERVAL_SECONDS = 60
 
 # 強制讀取環境變數，並加上詳細的 Debug 輸出 (注意：為了安全，密碼只顯示前幾碼)
 DB_HOST = os.getenv("MYSQL_HOST", "localhost")
-DB_PORT = int(os.getenv("MYSQL_PORT", 31082))
+DB_PORT = int(os.getenv("MYSQL_PORT", 31082)
 DB_USER = os.getenv("MYSQL_USERNAME") or os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")

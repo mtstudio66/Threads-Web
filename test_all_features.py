@@ -932,6 +932,187 @@ class TestSchedulingUtilities(unittest.TestCase):
         print("✅ UTC 時間會正確轉成台北時間")
 
 
+class TestContentSettingsAPI(unittest.TestCase):
+    """測試文案設定 API"""
+    
+    def setUp(self):
+        self.app = app.test_client()
+        self.app.testing = True
+    
+    @patch('bot.get_db_connection')
+    def test_get_public_content_settings(self, mock_db):
+        """測試公開取得文案設定成功"""
+        cursor = MockDBCursor([
+            {'settingKey': 'site_title', 'settingValue': 'AutoThreader'},
+            {'settingKey': 'site_welcome', 'settingValue': 'Welcome'},
+        ])
+        mock_db.return_value = MockDBConnection(cursor)
+        
+        response = self.app.get('/api/content-settings')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertIn('settings', data)
+        print("✅ 公開取得文案設定成功")
+    
+    @patch('bot.get_db_connection')
+    def test_update_content_settings_success(self, mock_db):
+        """測試更新文案設定成功"""
+        cursor = MockDBCursor()
+        mock_db.return_value = MockDBConnection(cursor)
+        
+        response = self.app.post('/api/admin/content-settings',
+                                 data=json.dumps({'settings': {
+                                     'site_title': 'My AutoThreader',
+                                     'site_welcome': '歡迎！'
+                                 }}),
+                                 content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertTrue(data['success'])
+        print("✅ 更新文案設定成功")
+    
+    @patch('bot.get_db_connection')
+    def test_update_content_settings_invalid_format(self, mock_db):
+        """測試文案設定格式錯誤時回傳 400"""
+        cursor = MockDBCursor()
+        mock_db.return_value = MockDBConnection(cursor)
+        
+        response = self.app.post('/api/admin/content-settings',
+                                 data=json.dumps({'settings': 'not_a_dict'}),
+                                 content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        print("✅ 文案設定格式錯誤時正確回傳 400")
+
+
+class TestPublicPlansAndUSDTAPI(unittest.TestCase):
+    """測試公開方案與 USDT 設定 API"""
+    
+    def setUp(self):
+        self.app = app.test_client()
+        self.app.testing = True
+    
+    @patch('bot.get_db_connection')
+    def test_get_public_plans(self, mock_db):
+        """測試公開取得方案列表成功"""
+        cursor = MockDBCursor([
+            {'id': 1, 'planName': '免費方案', 'description': '基本方案', 'priceUsdt': 0,
+             'monthlyPostLimit': 100, 'aiGenerationLimit': 10, 'features': '["基本發文"]'},
+        ])
+        mock_db.return_value = MockDBConnection(cursor)
+        
+        response = self.app.get('/api/plans')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertIn('plans', data)
+        print("✅ 公開取得方案列表成功")
+    
+    @patch('bot.get_db_connection')
+    def test_get_public_usdt_settings(self, mock_db):
+        """測試公開取得 USDT 設定成功"""
+        cursor = MockDBCursor([
+            {'walletAddress': 'TEST_ADDR', 'networkType': 'TRC20', 'minPaymentAmount': 10.00}
+        ])
+        mock_db.return_value = MockDBConnection(cursor)
+        
+        response = self.app.get('/api/usdt-settings')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertIn('settings', data)
+        print("✅ 公開取得 USDT 設定成功")
+
+
+class TestPaymentNotifyAPI(unittest.TestCase):
+    """測試付款通知 API"""
+    
+    def setUp(self):
+        self.app = app.test_client()
+        self.app.testing = True
+    
+    @patch('bot.get_db_connection')
+    def test_notify_payment_not_found(self, mock_db):
+        """測試付款記錄不存在時回傳 404"""
+        cursor = MockDBCursor([])
+        mock_db.return_value = MockDBConnection(cursor)
+        
+        response = self.app.post('/api/user/payment/999/notify')
+        self.assertEqual(response.status_code, 404)
+        print("✅ 付款記錄不存在時正確回傳 404")
+    
+    @patch('bot.get_db_connection')
+    def test_notify_payment_success(self, mock_db):
+        """測試通知付款成功"""
+        cursor = MockDBCursor([
+            {'id': 1, 'userId': 1, 'planId': 1, 'amountUsdt': 9.99, 'status': 'pending', 'notifiedAt': None}
+        ])
+        mock_db.return_value = MockDBConnection(cursor)
+        
+        response = self.app.post('/api/user/payment/1/notify')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertTrue(data['success'])
+        print("✅ 通知付款成功")
+    
+    @patch('bot.get_db_connection')
+    def test_notify_payment_already_confirmed(self, mock_db):
+        """測試已確認的付款無法再次通知"""
+        cursor = MockDBCursor([
+            {'id': 1, 'userId': 1, 'planId': 1, 'amountUsdt': 9.99, 'status': 'confirmed', 'notifiedAt': None}
+        ])
+        mock_db.return_value = MockDBConnection(cursor)
+        
+        response = self.app.post('/api/user/payment/1/notify')
+        self.assertEqual(response.status_code, 400)
+        print("✅ 已確認付款無法再次通知，正確回傳 400")
+    
+    @patch('bot.get_db_connection')
+    def test_get_admin_notifications(self, mock_db):
+        """測試取得後台通知成功"""
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+        mock_cursor.fetchone.return_value = {'cnt': 0}
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_db.return_value = mock_conn
+        
+        response = self.app.get('/api/admin/notifications')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertIn('notifications', data)
+        self.assertIn('count', data)
+        print("✅ 取得後台通知成功")
+
+
+class TestFirstCommentSchedule(unittest.TestCase):
+    """測試第一則留言排程功能"""
+    
+    def setUp(self):
+        self.app = app.test_client()
+        self.app.testing = True
+    
+    @patch('bot.get_db_connection')
+    @patch('bot.validate_threads_token')
+    def test_schedule_with_first_comment(self, mock_validate, mock_db):
+        """測試排程時可設定第一則留言"""
+        mock_validate.return_value = (True, 'Token 有效', {'username': 'test_user'})
+        cursor = MockDBCursor([{'accessToken': 'test_token_valid'}])
+        mock_db.return_value = MockDBConnection(cursor)
+        
+        response = self.app.post('/api/schedule',
+                                 data=json.dumps({
+                                     'accountId': 1,
+                                     'content': '測試貼文',
+                                     'scheduledAt': '2030-01-01 12:00:00',
+                                     'firstComment': '這是第一則留言',
+                                     'firstCommentPinned': True
+                                 }),
+                                 content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        # 驗證 INSERT 語句包含 firstComment 欄位
+        insert_queries = [q for q, _ in cursor.executed if 'firstComment' in q]
+        self.assertTrue(len(insert_queries) > 0, "排程 INSERT 應包含 firstComment 欄位")
+        print("✅ 排程時可設定第一則留言")
+
+
 def run_all_tests():
     """執行所有測試並輸出結果摘要"""
     print("\n" + "="*60)
@@ -959,6 +1140,10 @@ def run_all_tests():
         TestUtilityAPI,
         TestBillingSettingsAPI,
         TestSchedulingUtilities,
+        TestContentSettingsAPI,
+        TestPublicPlansAndUSDTAPI,
+        TestPaymentNotifyAPI,
+        TestFirstCommentSchedule,
     ]
     
     for test_class in test_classes:

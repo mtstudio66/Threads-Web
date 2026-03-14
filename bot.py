@@ -246,7 +246,16 @@ def init_db():
                 txHash VARCHAR(128),
                 status ENUM('pending', 'confirmed', 'failed', 'expired') DEFAULT 'pending',
                 createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                confirmedAt TIMESTAMP NULL
+                confirmedAt TIMESTAMP NULL,
+                notifiedAt TIMESTAMP NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS content_settings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                settingKey VARCHAR(64) NOT NULL UNIQUE,
+                settingValue TEXT,
+                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         """)
 
@@ -264,6 +273,9 @@ def init_db():
         if not column_exists('users', 'isActive'): cursor.execute("ALTER TABLE users ADD COLUMN isActive BOOLEAN DEFAULT TRUE")
         if not column_exists('scheduled_posts', 'imageUrl'): cursor.execute("ALTER TABLE scheduled_posts ADD COLUMN imageUrl TEXT DEFAULT NULL")
         if not column_exists('posts', 'imageUrl'): cursor.execute("ALTER TABLE posts ADD COLUMN imageUrl TEXT DEFAULT NULL")
+        if not column_exists('scheduled_posts', 'firstComment'): cursor.execute("ALTER TABLE scheduled_posts ADD COLUMN firstComment TEXT DEFAULT NULL")
+        if not column_exists('scheduled_posts', 'firstCommentPinned'): cursor.execute("ALTER TABLE scheduled_posts ADD COLUMN firstCommentPinned BOOLEAN DEFAULT FALSE")
+        if not column_exists('payment_records', 'notifiedAt'): cursor.execute("ALTER TABLE payment_records ADD COLUMN notifiedAt TIMESTAMP NULL DEFAULT NULL")
 
         cursor.execute("SELECT COUNT(*) FROM users")
         if cursor.fetchone()[0] == 0:
@@ -299,6 +311,16 @@ def init_db():
         cursor.execute("SELECT COUNT(*) FROM usdt_settings")
         if cursor.fetchone()[0] == 0:
             cursor.execute("INSERT INTO usdt_settings (walletAddress, networkType, minPaymentAmount) VALUES ('TRX_WALLET_ADDRESS_HERE', 'TRC20', 10.00)")
+
+        default_content_settings = [
+            ('site_title', 'AutoThreader'),
+            ('site_welcome', '歡迎使用 AutoThreader，讓您的 Threads 發文自動化！'),
+            ('compose_placeholder', '想分享什麼？支援 Threads 發文...'),
+            ('payment_instructions', '請將 USDT 轉帳至以下地址，完成後點擊「已付款」按鈕通知管理員確認。'),
+            ('upgrade_hint', '此功能需要升級方案才能使用，請前往方案選擇頁升級。'),
+        ]
+        for key, value in default_content_settings:
+            cursor.execute("INSERT IGNORE INTO content_settings (settingKey, settingValue) VALUES (%s, %s)", (key, value))
 
         cursor.execute("SELECT COUNT(*) FROM trending_templates")
         template_count = cursor.fetchone()[0]
@@ -530,6 +552,12 @@ def create_user():
         db = get_db_connection()
         cursor = db.cursor()
         hashed_password = hash_password(password)
+        # 新會員自動開通免費方案
+        if planId is None:
+            cursor.execute("SELECT id FROM subscription_plans WHERE priceUsdt = 0 AND isActive = TRUE ORDER BY id ASC LIMIT 1")
+            free_plan = cursor.fetchone()
+            if free_plan:
+                planId = free_plan[0]
         cursor.execute(
             "INSERT INTO users (username, password, email, role, planId) VALUES (%s, %s, %s, %s, %s)",
             (username, hashed_password, email, role, planId)
@@ -752,6 +780,136 @@ def update_usdt_settings():
         if cursor: cursor.close()
         if db: db.close()
 
+# ==========================================
+# 公開 API：方案、USDT設定、文案設定
+# ==========================================
+
+@app.route('/api/plans', methods=['GET'])
+def get_public_plans():
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("SELECT id, planName, description, priceUsdt, monthlyPostLimit, aiGenerationLimit, features FROM subscription_plans WHERE isActive = TRUE ORDER BY priceUsdt ASC")
+        plans = cursor.fetchall()
+        for p in plans:
+            if isinstance(p.get('features'), str):
+                try: p['features'] = json.loads(p['features'])
+                except: p['features'] = []
+        return jsonify({"plans": plans}), 200
+    except Exception as e:
+        return jsonify({"plans": [], "error": str(e)}), 200
+    finally:
+        if cursor: cursor.close()
+        if db: db.close()
+
+@app.route('/api/usdt-settings', methods=['GET'])
+def get_public_usdt_settings():
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("SELECT walletAddress, networkType, minPaymentAmount FROM usdt_settings WHERE isActive = TRUE LIMIT 1")
+        settings = cursor.fetchone() or {"walletAddress": "", "networkType": "TRC20", "minPaymentAmount": 10.00}
+        return jsonify({"settings": settings}), 200
+    except Exception as e:
+        return jsonify({"settings": {}, "error": str(e)}), 200
+    finally:
+        if cursor: cursor.close()
+        if db: db.close()
+
+@app.route('/api/content-settings', methods=['GET'])
+def get_public_content_settings():
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("SELECT settingKey, settingValue FROM content_settings")
+        rows = cursor.fetchall()
+        settings = {r['settingKey']: r['settingValue'] for r in rows}
+        return jsonify({"settings": settings}), 200
+    except Exception as e:
+        return jsonify({"settings": {}}), 200
+    finally:
+        if cursor: cursor.close()
+        if db: db.close()
+
+@app.route('/api/admin/content-settings', methods=['GET'])
+def get_admin_content_settings():
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("SELECT settingKey, settingValue FROM content_settings ORDER BY settingKey")
+        rows = cursor.fetchall()
+        return jsonify({"settings": rows}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if cursor: cursor.close()
+        if db: db.close()
+
+@app.route('/api/admin/content-settings', methods=['POST'])
+def update_content_settings():
+    data = request.json
+    settings = data.get('settings', {})
+    if not isinstance(settings, dict):
+        return jsonify({"success": False, "message": "settings 必須為物件"}), 400
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        for key, value in settings.items():
+            cursor.execute("""
+                INSERT INTO content_settings (settingKey, settingValue) VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE settingValue = %s
+            """, (key, value, value))
+        db.commit()
+        return jsonify({"success": True, "message": "文案設定已更新"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        if cursor: cursor.close()
+        if db: db.close()
+
+@app.route('/api/admin/notifications', methods=['GET'])
+def get_admin_notifications():
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT pr.id, u.username, sp.planName, pr.amountUsdt, pr.notifiedAt, pr.createdAt
+            FROM payment_records pr
+            LEFT JOIN users u ON pr.userId = u.id
+            LEFT JOIN subscription_plans sp ON pr.planId = sp.id
+            WHERE pr.status = 'pending' AND pr.notifiedAt IS NOT NULL
+            ORDER BY pr.notifiedAt DESC
+        """)
+        notifications = cursor.fetchall()
+        cursor.execute("SELECT COUNT(*) as cnt FROM payment_records WHERE status = 'pending' AND notifiedAt IS NOT NULL")
+        count = cursor.fetchone()['cnt']
+        return jsonify({"notifications": notifications, "count": count}), 200
+    except Exception as e:
+        return jsonify({"notifications": [], "count": 0}), 200
+    finally:
+        if cursor: cursor.close()
+        if db: db.close()
+
+@app.route('/api/user/payment/<int:payment_id>/notify', methods=['POST'])
+def notify_payment(payment_id):
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM payment_records WHERE id = %s", (payment_id,))
+        payment = cursor.fetchone()
+        if not payment:
+            return jsonify({"success": False, "message": "找不到付款記錄"}), 404
+        if payment['status'] != 'pending':
+            return jsonify({"success": False, "message": "此訂單狀態不允許操作"}), 400
+        cursor.execute("UPDATE payment_records SET notifiedAt = NOW() WHERE id = %s", (payment_id,))
+        db.commit()
+        return jsonify({"success": True, "message": "已通知管理員，請等待確認"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        if cursor: cursor.close()
+        if db: db.close()
+
 @app.route('/api/admin/payments', methods=['GET'])
 def get_payment_records():
     try:
@@ -788,6 +946,19 @@ def confirm_payment(payment_id):
             WHERE id = %s
         """, (data.get('txHash', ''), payment_id))
         cursor.execute("UPDATE users SET planId = %s WHERE id = %s", (payment['planId'], payment['userId']))
+        # 根據方案授予對應的功能權限
+        cursor.execute("SELECT features FROM subscription_plans WHERE id = %s", (payment['planId'],))
+        plan_row = cursor.fetchone()
+        if plan_row and plan_row.get('features'):
+            features = plan_row['features']
+            if isinstance(features, str):
+                try: features = json.loads(features)
+                except: features = []
+            admin_id = data.get('adminId', 1)
+            for feature in features:
+                cursor.execute("""
+                    INSERT IGNORE INTO user_permissions (userId, permission, grantedBy) VALUES (%s, %s, %s)
+                """, (payment['userId'], feature, admin_id))
         db.commit()
         return jsonify({"success": True, "message": "付款已確認，方案已啟用"}), 200
     except Exception as e:
@@ -900,8 +1071,8 @@ def save_schedule():
             return jsonify({"message": f"無法建立排程：此帳號的 Token 無效，{token_message}"}), 400
 
         normalized_image_url = normalize_image_url(data.get('imageUrl'))
-        query = "INSERT INTO scheduled_posts (accountId, content, imageUrl, scheduledAt, status) VALUES (%s, %s, %s, %s, 'pending')"
-        cursor.execute(query, (data.get('accountId'), data.get('content'), normalized_image_url, scheduled_at))
+        query = "INSERT INTO scheduled_posts (accountId, content, imageUrl, scheduledAt, status, firstComment, firstCommentPinned) VALUES (%s, %s, %s, %s, 'pending', %s, %s)"
+        cursor.execute(query, (data.get('accountId'), data.get('content'), normalized_image_url, scheduled_at, data.get('firstComment') or None, bool(data.get('firstCommentPinned', False))))
         db.commit()
         return jsonify({"message": "排程設定成功！"}), 200
     except ValueError as e:
@@ -1093,6 +1264,31 @@ def post_to_threads(content, image_url, access_token):
     except Exception as e: 
         return False, str(e)
 
+def post_first_comment(comment_text, threads_post_id, access_token):
+    """在發文成功後，以回覆方式發送第一則留言"""
+    try:
+        create_payload = {
+            "media_type": "TEXT",
+            "text": comment_text,
+            "reply_to_id": threads_post_id,
+            "access_token": access_token
+        }
+        create_response = requests.post(THREADS_API_URL, data=create_payload, timeout=15).json()
+        if 'id' not in create_response:
+            logger.warning(f"第一則留言草稿建立失敗: {create_response}")
+            return False
+        publish_payload = {"creation_id": create_response['id'], "access_token": access_token}
+        publish_url = "https://graph.threads.net/v1.0/me/threads_publish"
+        publish_response = requests.post(publish_url, data=publish_payload, timeout=15).json()
+        if 'id' in publish_response:
+            logger.info(f"第一則留言發送成功: {publish_response['id']}")
+            return True
+        logger.warning(f"第一則留言發布失敗: {publish_response}")
+        return False
+    except Exception as e:
+        logger.warning(f"post_first_comment 例外: {e}")
+        return False
+
 def process_posts():
     db = None
     cursor = None
@@ -1104,7 +1300,7 @@ def process_posts():
         now = get_taipei_now_naive()
         
         cursor.execute("""
-            SELECT sp.id, sp.accountId, sp.content, sp.imageUrl, ta.accessToken 
+            SELECT sp.id, sp.accountId, sp.content, sp.imageUrl, sp.firstComment, sp.firstCommentPinned, ta.accessToken 
             FROM scheduled_posts sp JOIN threads_accounts ta ON sp.accountId = ta.id
             WHERE sp.status = 'pending' AND sp.scheduledAt <= %s AND ta.isActive = 1
         """, (now,))
@@ -1126,6 +1322,14 @@ def process_posts():
                         VALUES (%s, %s, %s, %s, 'published', %s)
                     """, (post['accountId'], post['content'], post['imageUrl'], result, published_at))
                     published_post_id = cursor.lastrowid
+                    
+                    # 🌟 發送第一則留言
+                    first_comment = post.get('firstComment')
+                    if first_comment and first_comment.strip():
+                        try:
+                            post_first_comment(first_comment.strip(), result, post['accessToken'])
+                        except Exception as fc_err:
+                            logger.warning(f"第一則留言發送失敗 (post_id={post_id}): {fc_err}")
                     
                     cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
                     billing = cursor.fetchone() or {}

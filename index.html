@@ -59,6 +59,7 @@
             <button onclick="switchTab('accounts')" id="tab-desktop-accounts" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-users w-5"></i> 帳號管理</button>
             <button onclick="switchTab('templates')" id="tab-desktop-templates" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-fire w-5"></i> 熱門文案</button>
             <button onclick="switchTab('schedule')" id="tab-desktop-schedule" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-clock w-5"></i> 排程歷史</button>
+            <button onclick="switchTab('plans')" id="tab-desktop-plans" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-crown w-5"></i> 方案訂閱</button>
             <button onclick="switchTab('admin')" id="tab-desktop-admin" class="tab-btn-desktop flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground rounded-md transition-colors"><i class="fa-solid fa-wallet w-5"></i> 計費管理</button>
         </nav>
     </aside>
@@ -69,6 +70,7 @@
         <button onclick="switchTab('accounts')" id="tab-mobile-accounts" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-users text-lg mb-1"></i><span class="text-[10px] font-medium">帳號</span></button>
         <button onclick="switchTab('templates')" id="tab-mobile-templates" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-fire text-lg mb-1"></i><span class="text-[10px] font-medium">文案</span></button>
         <button onclick="switchTab('schedule')" id="tab-mobile-schedule" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-clock text-lg mb-1"></i><span class="text-[10px] font-medium">歷史</span></button>
+        <button onclick="switchTab('plans')" id="tab-mobile-plans" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-crown text-lg mb-1"></i><span class="text-[10px] font-medium">方案</span></button>
         <button onclick="switchTab('admin')" id="tab-mobile-admin" class="tab-btn-mobile flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-foreground"><i class="fa-solid fa-wallet text-lg mb-1"></i><span class="text-[10px] font-medium">管理</span></button>
     </nav>
 
@@ -115,6 +117,24 @@
                             <div>
                                 <label class="block text-xs text-muted-foreground mb-1">排程時間 (台北時間)</label>
                                 <input type="time" id="scheduleTime" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none text-foreground css-color-scheme-dark">
+                            </div>
+                        </div>
+
+                        <!-- 第一則留言設定 -->
+                        <div class="mb-4 border border-border rounded-md">
+                            <button onclick="toggleFirstComment()" class="w-full flex items-center justify-between px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                                <span><i class="fa-solid fa-comment-dots mr-2 text-primary"></i>第一則留言設定（選填）</span>
+                                <i id="firstCommentToggleIcon" class="fa-solid fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="firstCommentPanel" class="hidden px-4 pb-4 space-y-3 border-t border-border pt-3">
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">留言內容</label>
+                                    <textarea id="firstCommentContent" rows="3" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none" placeholder="發文後自動發布的第一則留言內容..."></textarea>
+                                </div>
+                                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input type="checkbox" id="firstCommentPinned" class="rounded border-border bg-input text-primary focus:ring-primary">
+                                    <span class="text-muted-foreground">置頂此留言</span>
+                                </label>
                             </div>
                         </div>
 
@@ -249,8 +269,9 @@
                         <button onclick="switchAdminTab('users')" id="adminTab-users" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">會員管理</button>
                         <button onclick="switchAdminTab('plans')" id="adminTab-plans" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">訂閱方案</button>
                         <button onclick="switchAdminTab('templates')" id="adminTab-templates" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">文案管理</button>
+                        <button onclick="switchAdminTab('content')" id="adminTab-content" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">文案設定</button>
                         <button onclick="switchAdminTab('usdt')" id="adminTab-usdt" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">USDT設定</button>
-                        <button onclick="switchAdminTab('payments')" id="adminTab-payments" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">付款記錄</button>
+                        <button onclick="switchAdminTab('payments')" id="adminTab-payments" class="admin-tab-btn px-4 py-2 text-sm rounded-md text-muted-foreground hover:bg-secondary">付款記錄 <span id="paymentNotifBadge" class="hidden ml-1 bg-destructive text-white text-[10px] px-1.5 py-0.5 rounded-full"></span></button>
                         <button onclick="adminLogout()" class="ml-auto px-4 py-2 text-sm rounded-md text-destructive border border-destructive/20 hover:bg-destructive/10">登出</button>
                     </div>
 
@@ -388,6 +409,11 @@
                             <button onclick="loadPaymentRecords()" class="text-xs text-muted-foreground hover:text-foreground"><i class="fa-solid fa-rotate-right mr-1"></i>刷新</button>
                         </div>
                         
+                        <!-- 待確認通知 -->
+                        <div id="pendingNotifArea" class="hidden mb-4 p-4 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30">
+                            <p class="text-sm font-medium text-[#f59e0b]"><i class="fa-solid fa-bell mr-2"></i><span id="pendingNotifText"></span></p>
+                        </div>
+                        
                         <div class="rounded-lg bg-card border border-border overflow-hidden shadow-elegant">
                             <div class="overflow-x-auto">
                                 <table class="w-full text-sm text-left whitespace-nowrap">
@@ -395,7 +421,7 @@
                                         <tr>
                                             <th class="px-5 py-3">ID</th><th class="px-5 py-3">用戶</th><th class="px-5 py-3">方案</th>
                                             <th class="px-5 py-3">金額(USDT)</th><th class="px-5 py-3">交易Hash</th><th class="px-5 py-3">狀態</th>
-                                            <th class="px-5 py-3">建立時間</th><th class="px-5 py-3">操作</th>
+                                            <th class="px-5 py-3">通知時間</th><th class="px-5 py-3">建立時間</th><th class="px-5 py-3">操作</th>
                                         </tr>
                                     </thead>
                                     <tbody id="paymentRecordsTable" class="divide-y divide-border"></tbody>
@@ -403,11 +429,109 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- 文案設定區塊 -->
+                    <div id="adminSection-content" class="hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-foreground"><i class="fa-solid fa-pen-fancy mr-2 text-primary"></i>前台文案設定</h3>
+                            <button onclick="saveContentSettings()" class="px-4 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90"><i class="fa-solid fa-save mr-1"></i>儲存設定</button>
+                        </div>
+                        <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
+                            <div class="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">網站標題</label>
+                                    <input type="text" id="cs_site_title" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="AutoThreader">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">歡迎語</label>
+                                    <input type="text" id="cs_site_welcome" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="歡迎使用 AutoThreader...">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">發文編輯器預設提示文字</label>
+                                    <input type="text" id="cs_compose_placeholder" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="想分享什麼？支援 Threads 發文...">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">付款說明文字</label>
+                                    <textarea id="cs_payment_instructions" rows="3" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none" placeholder="請將 USDT 轉帳至以下地址..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-muted-foreground block mb-1">升級提示語</label>
+                                    <input type="text" id="cs_upgrade_hint" class="w-full rounded-md bg-input border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="此功能需要升級方案才能使用...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. 方案訂閱 -->
+            <section id="section-plans" class="hidden max-w-5xl mx-auto space-y-6">
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold text-foreground mb-2"><i class="fa-solid fa-crown mr-2 text-primary"></i>選擇訂閱方案</h2>
+                    <p id="plansSubtitle" class="text-sm text-muted-foreground">依據您的需求選擇最適合的方案，立即開始使用進階功能</p>
+                </div>
+                <div id="frontPlansGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"></div>
+                <div class="rounded-lg bg-card border border-border p-5 shadow-elegant">
+                    <h4 class="font-medium text-sm mb-3"><i class="fa-brands fa-bitcoin mr-2 text-primary"></i>付款方式：USDT 加密貨幣</h4>
+                    <div id="frontUsdtInfo" class="space-y-2 text-sm text-muted-foreground">
+                        <p><i class="fa-solid fa-circle-info mr-2 text-primary"></i>載入付款資訊中...</p>
+                    </div>
                 </div>
             </section>
 
         </div>
     </main>
+
+    <!-- === 付款 Modal === -->
+    <div id="paymentModal" class="fixed inset-0 bg-black/70 z-[90] flex items-center justify-center hidden">
+        <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-elegant">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium"><i class="fa-brands fa-bitcoin mr-2 text-primary"></i>USDT 付款</h3>
+                <button onclick="closePaymentModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div class="p-4 rounded-lg bg-secondary/20 border border-border">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm text-muted-foreground">訂閱方案</span>
+                        <span id="payModalPlanName" class="text-sm font-medium"></span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-muted-foreground">付款金額</span>
+                        <span id="payModalAmount" class="text-lg font-bold text-primary"></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs text-muted-foreground block mb-1">USDT 收款地址 (<span id="payModalNetwork"></span>)</label>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="payModalAddress" readonly class="flex-1 rounded-md bg-input border border-border px-3 py-2 text-sm font-mono text-foreground focus:outline-none cursor-pointer" onclick="copyPaymentAddress()">
+                        <button onclick="copyPaymentAddress()" class="px-3 py-2 text-sm bg-secondary hover:bg-secondary/80 rounded-md transition-colors" title="複製地址"><i class="fa-solid fa-copy"></i></button>
+                    </div>
+                </div>
+                <div id="payModalInstructions" class="text-xs text-muted-foreground p-3 rounded bg-secondary/10 border border-border"></div>
+                <input type="hidden" id="payModalPaymentId">
+                <div class="flex gap-3">
+                    <button onclick="closePaymentModal()" class="flex-1 py-2.5 text-sm bg-secondary hover:bg-secondary/80 rounded-md transition-colors">稍後付款</button>
+                    <button onclick="reportPaymentDone()" id="reportPaidBtn" class="flex-1 py-2.5 text-sm font-medium text-white bg-[#10b981] hover:opacity-90 rounded-md transition-opacity"><i class="fa-solid fa-check mr-1"></i>已付款，通知確認</button>
+                </div>
+                <p class="text-xs text-muted-foreground text-center">點擊「已付款」後，管理員將在 24 小時內確認並開通方案</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- === 升級提示 Modal === -->
+    <div id="upgradeModal" class="fixed inset-0 bg-black/70 z-[90] flex items-center justify-center hidden">
+        <div class="bg-card border border-border rounded-lg p-6 w-full max-w-sm mx-4 shadow-elegant">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-primary"><i class="fa-solid fa-crown mr-2"></i>升級方案</h3>
+                <button onclick="closeUpgradeModal()" class="text-muted-foreground hover:text-foreground"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p id="upgradeModalHint" class="text-sm text-muted-foreground mb-4"></p>
+            <div class="flex gap-3">
+                <button onclick="closeUpgradeModal()" class="flex-1 py-2.5 text-sm bg-secondary hover:bg-secondary/80 rounded-md transition-colors">取消</button>
+                <button onclick="goToPlans()" class="flex-1 py-2.5 text-sm font-medium text-white bg-primary hover:opacity-90 rounded-md transition-opacity"><i class="fa-solid fa-crown mr-1"></i>查看方案</button>
+            </div>
+        </div>
+    </div>
 
     <!-- === 強制修改密碼 Modal === -->
     <div id="forcePasswordModal" class="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center hidden">
@@ -578,10 +702,11 @@
         let allPlans = [];
         let isAdminLoggedIn = false;
         let currentAdminUser = null;
+        let contentSettings = {};
         
-        const sections = ['compose', 'accounts', 'templates', 'schedule', 'admin'];
-        const titles = {'compose': '發文編輯器', 'accounts': '帳號管理', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'admin': '計費與系統管理'};
-        const adminSections = ['billing', 'users', 'plans', 'templates', 'usdt', 'payments']; // 新增 templates
+        const sections = ['compose', 'accounts', 'templates', 'schedule', 'plans', 'admin'];
+        const titles = {'compose': '發文編輯器', 'accounts': '帳號管理', 'templates': '熱門文案庫', 'schedule': '排程與發文歷史', 'plans': '方案訂閱', 'admin': '計費與系統管理'};
+        const adminSections = ['billing', 'users', 'plans', 'templates', 'content', 'usdt', 'payments'];
         
         // XSS 防護: HTML 實體編碼
         function escapeHtml(str) {
@@ -609,6 +734,9 @@
             if(tabId === 'admin') {
                 checkAdminSession();
             }
+            if(tabId === 'plans') {
+                loadFrontPlans();
+            }
         }
         
         function switchAdminTab(tabId) {
@@ -627,6 +755,7 @@
             if(tabId === 'users') loadAllUsers();
             if(tabId === 'plans') loadAllPlans();
             if(tabId === 'templates') loadAdminTemplates(); // 載入文案管理
+            if(tabId === 'content') loadContentSettings();
             if(tabId === 'usdt') loadUsdtSettings();
             if(tabId === 'payments') loadPaymentRecords();
         }
@@ -1406,12 +1535,34 @@
 
         async function loadPaymentRecords() {
             try {
-                const res = await fetch('/api/admin/payments');
-                const data = await res.json();
+                const [paymentsRes, notifRes] = await Promise.all([
+                    fetch('/api/admin/payments'),
+                    fetch('/api/admin/notifications')
+                ]);
+                const data = await paymentsRes.json();
+                const notifData = await notifRes.json();
                 const payments = data.payments || [];
+                
+                // 更新通知角標
+                const notifCount = notifData.count || 0;
+                const badge = document.getElementById('paymentNotifBadge');
+                const notifArea = document.getElementById('pendingNotifArea');
+                const notifText = document.getElementById('pendingNotifText');
+                if(badge) {
+                    if(notifCount > 0) {
+                        badge.textContent = notifCount;
+                        badge.classList.remove('hidden');
+                        if(notifArea) notifArea.classList.remove('hidden');
+                        if(notifText) notifText.textContent = `有 ${notifCount} 筆待確認付款，客戶已通知已付款，請盡快確認`;
+                    } else {
+                        badge.classList.add('hidden');
+                        if(notifArea) notifArea.classList.add('hidden');
+                    }
+                }
                 
                 const paymentsHtml = payments.map(p => {
                     let statusBadge;
+                    const isNotified = p.status === 'pending' && p.notifiedAt;
                     switch(p.status) {
                         case 'confirmed':
                             statusBadge = '<span class="text-[#10b981] bg-[#10b981]/10 px-2 py-1 rounded text-[10px]">已確認</span>';
@@ -1423,17 +1574,20 @@
                             statusBadge = '<span class="text-muted-foreground bg-secondary px-2 py-1 rounded text-[10px]">已過期</span>';
                             break;
                         default:
-                            statusBadge = '<span class="text-[#f59e0b] bg-[#f59e0b]/10 px-2 py-1 rounded text-[10px]">待確認</span>';
+                            statusBadge = isNotified
+                                ? '<span class="text-[#f59e0b] bg-[#f59e0b]/10 px-2 py-1 rounded text-[10px] font-bold">⚡ 待確認（已通知）</span>'
+                                : '<span class="text-[#f59e0b] bg-[#f59e0b]/10 px-2 py-1 rounded text-[10px]">待付款</span>';
                     }
                     
                     return `
-                    <tr class="hover:bg-muted/10">
+                    <tr class="hover:bg-muted/10${isNotified ? ' bg-[#f59e0b]/5' : ''}">
                         <td class="px-5 py-3 text-muted-foreground">#${p.id}</td>
-                        <td class="px-5 py-3 font-medium">${p.username || '-'}</td>
-                        <td class="px-5 py-3">${p.planName || '-'}</td>
+                        <td class="px-5 py-3 font-medium">${escapeHtml(p.username || '-')}</td>
+                        <td class="px-5 py-3">${escapeHtml(p.planName || '-')}</td>
                         <td class="px-5 py-3 font-mono text-primary">$${parseFloat(p.amountUsdt).toFixed(2)}</td>
-                        <td class="px-5 py-3 font-mono text-xs text-muted-foreground truncate max-w-[120px]" title="${p.txHash||''}">${p.txHash || '-'}</td>
+                        <td class="px-5 py-3 font-mono text-xs text-muted-foreground truncate max-w-[120px]" title="${escapeHtml(p.txHash||'')}">${escapeHtml(p.txHash || '-')}</td>
                         <td class="px-5 py-3">${statusBadge}</td>
+                        <td class="px-5 py-3 text-xs text-muted-foreground">${p.notifiedAt ? `<span class="text-[#f59e0b]">${p.notifiedAt}</span>` : '-'}</td>
                         <td class="px-5 py-3 text-xs text-muted-foreground">${p.createdAt || '-'}</td>
                         <td class="px-5 py-3">
                             ${p.status === 'pending' ? `<button onclick="showConfirmPaymentModal(${p.id})" class="text-[#10b981] hover:opacity-80 px-2 py-1 border border-[#10b981]/20 rounded text-xs"><i class="fa-solid fa-check mr-1"></i>確認</button>` : '-'}
@@ -1441,7 +1595,7 @@
                     </tr>
                 `}).join('');
                 
-                document.getElementById('paymentRecordsTable').innerHTML = paymentsHtml || '<tr><td colspan="8" class="px-5 py-4 text-center text-muted-foreground">無付款記錄</td></tr>';
+                document.getElementById('paymentRecordsTable').innerHTML = paymentsHtml || '<tr><td colspan="9" class="px-5 py-4 text-center text-muted-foreground">無付款記錄</td></tr>';
             } catch(e) {
                 console.error('載入付款記錄失敗:', e);
             }
@@ -1631,16 +1785,263 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...'; btn.disabled = true;
 
             try {
+                const firstComment = document.getElementById('firstCommentContent').value.trim();
+                const firstCommentPinned = document.getElementById('firstCommentPinned').checked;
                 const payload = { content, scheduledAt, accountId: selectedAccount.value, timezoneOffsetMinutes: TAIPEI_TIMEZONE_OFFSET_MINUTES };
                 if (currentUploadedImageUrl) payload.imageUrl = currentUploadedImageUrl;
+                if (firstComment) { payload.firstComment = firstComment; payload.firstCommentPinned = firstCommentPinned; }
                 const response = await fetch('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const data = await response.json().catch(() => ({}));
                 if(response.ok) {
                     showAlert(data.message || (isImmediate ? '任務送出！1分鐘後自動發布' : '排程成功！'), true);
-                    document.getElementById('composeContent').value = ''; removeImage(); setDefaultTime(); loadDashboardData();
+                    document.getElementById('composeContent').value = ''; document.getElementById('firstCommentContent').value = ''; document.getElementById('firstCommentPinned').checked = false; removeImage(); setDefaultTime(); loadDashboardData();
                 } else { showAlert(data.message || '儲存失敗', false); }
             } catch (e) { showAlert('連線錯誤', false); } 
             finally { btn.innerHTML = origText; btn.disabled = false; }
+        }
+
+        // 初始載入
+        loadDashboardData();
+        loadFrontContentSettings();
+
+        // --- 第一則留言面板切換 ---
+        function toggleFirstComment() {
+            const panel = document.getElementById('firstCommentPanel');
+            const icon = document.getElementById('firstCommentToggleIcon');
+            panel.classList.toggle('hidden');
+            if(panel.classList.contains('hidden')) {
+                icon.className = 'fa-solid fa-chevron-down text-xs';
+            } else {
+                icon.className = 'fa-solid fa-chevron-up text-xs';
+            }
+        }
+
+        // --- 前台文案設定載入 ---
+        async function loadFrontContentSettings() {
+            try {
+                const res = await fetch('/api/content-settings');
+                const data = await res.json();
+                contentSettings = data.settings || {};
+                applyContentSettings();
+            } catch(e) {}
+        }
+
+        function applyContentSettings() {
+            if(contentSettings.compose_placeholder) {
+                const el = document.getElementById('composeContent');
+                if(el) el.placeholder = contentSettings.compose_placeholder;
+            }
+            if(contentSettings.site_welcome) {
+                const el = document.getElementById('plansSubtitle');
+                if(el && !el.dataset.custom) el.textContent = contentSettings.site_welcome;
+            }
+        }
+
+        // --- 前台方案列表 ---
+        async function loadFrontPlans() {
+            try {
+                const [plansRes, usdtRes] = await Promise.all([
+                    fetch('/api/plans'),
+                    fetch('/api/usdt-settings')
+                ]);
+                const plansData = await plansRes.json();
+                const usdtData = await usdtRes.json();
+                const plans = plansData.plans || [];
+                const usdt = usdtData.settings || {};
+
+                // 顯示 USDT 資訊
+                const usdtInfoEl = document.getElementById('frontUsdtInfo');
+                if(usdtInfoEl) {
+                    if(usdt.walletAddress && usdt.walletAddress !== 'TRX_WALLET_ADDRESS_HERE') {
+                        usdtInfoEl.innerHTML = `
+                            <div class="space-y-1">
+                                <p><i class="fa-solid fa-wallet mr-2 text-primary"></i>收款地址：<span class="font-mono text-foreground">${escapeHtml(usdt.walletAddress)}</span></p>
+                                <p><i class="fa-solid fa-network-wired mr-2 text-primary"></i>網路：${escapeHtml(usdt.networkType || 'TRC20')}</p>
+                                <p><i class="fa-solid fa-circle-info mr-2 text-primary"></i>${escapeHtml(contentSettings.payment_instructions || '請將 USDT 轉帳至以上地址，完成後點擊方案卡片的「訂閱」按鈕通知管理員。')}</p>
+                            </div>`;
+                    } else {
+                        usdtInfoEl.innerHTML = '<p><i class="fa-solid fa-circle-info mr-2 text-muted-foreground"></i>管理員尚未設定 USDT 收款地址，請稍後再試。</p>';
+                    }
+                }
+
+                // 顯示方案卡片
+                const plansGrid = document.getElementById('frontPlansGrid');
+                if(!plansGrid) return;
+                if(plans.length === 0) {
+                    plansGrid.innerHTML = '<div class="col-span-4 text-center py-10 text-muted-foreground">目前尚無可用方案</div>';
+                    return;
+                }
+                const highlight = ['', 'border-primary/50', 'border-[#10b981]/50', 'border-[#f59e0b]/50'];
+                plansGrid.innerHTML = plans.map((p, i) => {
+                    const features = Array.isArray(p.features) ? p.features : (typeof p.features === 'string' ? JSON.parse(p.features||'[]') : []);
+                    const isFree = parseFloat(p.priceUsdt) === 0;
+                    const borderClass = highlight[i % highlight.length] || 'border-border';
+                    return `
+                    <div class="rounded-lg bg-card border ${borderClass} p-5 shadow-elegant flex flex-col">
+                        <div class="mb-3">
+                            <h3 class="font-bold text-lg mb-1">${escapeHtml(p.planName)}</h3>
+                            <p class="text-xs text-muted-foreground">${escapeHtml(p.description || '')}</p>
+                        </div>
+                        <div class="mb-4">
+                            <span class="text-3xl font-bold text-primary">${isFree ? '免費' : '$' + parseFloat(p.priceUsdt).toFixed(2)}</span>
+                            ${!isFree ? '<span class="text-sm text-muted-foreground ml-1">USDT/月</span>' : ''}
+                        </div>
+                        <ul class="space-y-1.5 mb-5 flex-1">
+                            ${features.map(f => `<li class="text-xs text-muted-foreground flex items-center gap-1.5"><i class="fa-solid fa-check text-[#10b981]"></i>${escapeHtml(f)}</li>`).join('')}
+                            <li class="text-xs text-muted-foreground flex items-center gap-1.5"><i class="fa-solid fa-chart-bar text-primary"></i>每月發文：${p.monthlyPostLimit === -1 ? '無限制' : p.monthlyPostLimit + ' 篇'}</li>
+                            <li class="text-xs text-muted-foreground flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles text-primary"></i>AI生成：${p.aiGenerationLimit === -1 ? '無限制' : p.aiGenerationLimit + ' 次'}</li>
+                        </ul>
+                        <button onclick="subscribePlan(${p.id}, '${escapeHtml(p.planName)}', ${parseFloat(p.priceUsdt)})" class="w-full py-2.5 text-sm font-medium ${isFree ? 'bg-secondary text-foreground hover:bg-secondary/80' : 'bg-primary text-white hover:opacity-90'} rounded-md transition-all">
+                            ${isFree ? '<i class="fa-solid fa-check mr-1"></i> 使用免費方案' : '<i class="fa-solid fa-crown mr-1"></i> 立即訂閱'}
+                        </button>
+                    </div>`;
+                }).join('');
+            } catch(e) {
+                console.error('載入方案失敗:', e);
+            }
+        }
+
+        async function subscribePlan(planId, planName, price) {
+            // 使用預設的 userId=1（實際產品可擴充為用戶登入後的 id）
+            const userId = 1;
+            try {
+                const res = await fetch('/api/user/subscribe', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({userId, planId})
+                });
+                const data = await res.json();
+                if(data.success) {
+                    if(price === 0) {
+                        showAlert('免費方案已啟用！', true);
+                    } else {
+                        // 顯示付款頁
+                        showPaymentModal({
+                            paymentId: data.paymentId,
+                            planName: planName,
+                            amount: data.amount,
+                            walletAddress: data.walletAddress,
+                            networkType: data.networkType
+                        });
+                    }
+                } else {
+                    showAlert(data.message || '訂閱失敗', false);
+                }
+            } catch(e) {
+                showAlert('連線錯誤，請稍後再試', false);
+            }
+        }
+
+        function showPaymentModal({ paymentId, planName, amount, walletAddress, networkType }) {
+            document.getElementById('payModalPlanName').textContent = planName;
+            document.getElementById('payModalAmount').textContent = `${parseFloat(amount).toFixed(2)} USDT`;
+            document.getElementById('payModalAddress').value = walletAddress;
+            document.getElementById('payModalNetwork').textContent = networkType || 'TRC20';
+            document.getElementById('payModalPaymentId').value = paymentId;
+            document.getElementById('payModalInstructions').textContent = contentSettings.payment_instructions || '請將 USDT 轉帳至以上地址，完成後點擊「已付款」按鈕通知管理員確認。';
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+        }
+
+        function copyPaymentAddress() {
+            const addr = document.getElementById('payModalAddress').value;
+            if(addr) {
+                navigator.clipboard.writeText(addr).then(() => showAlert('地址已複製！', true)).catch(() => {
+                    document.getElementById('payModalAddress').select();
+                });
+            }
+        }
+
+        async function reportPaymentDone() {
+            const paymentId = document.getElementById('payModalPaymentId').value;
+            if(!paymentId) return;
+            const btn = document.getElementById('reportPaidBtn');
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> 處理中...'; btn.disabled = true;
+            try {
+                const res = await fetch(`/api/user/payment/${paymentId}/notify`, { method: 'POST' });
+                const data = await res.json();
+                if(data.success) {
+                    showAlert('已通知管理員，請耐心等待確認（通常 24 小時內）', true);
+                    closePaymentModal();
+                } else {
+                    showAlert(data.message || '通知失敗', false);
+                }
+            } catch(e) {
+                showAlert('連線錯誤', false);
+            } finally {
+                btn.innerHTML = origText; btn.disabled = false;
+            }
+        }
+
+        function showUpgradeModal(hint) {
+            const hintText = hint || contentSettings.upgrade_hint || '此功能需要升級方案才能使用，請前往方案選擇頁升級。';
+            document.getElementById('upgradeModalHint').textContent = hintText;
+            document.getElementById('upgradeModal').classList.remove('hidden');
+        }
+
+        function closeUpgradeModal() {
+            document.getElementById('upgradeModal').classList.add('hidden');
+        }
+
+        function goToPlans() {
+            closeUpgradeModal();
+            switchTab('plans');
+        }
+
+        // --- 後台文案設定 ---
+        async function loadContentSettings() {
+            try {
+                const res = await fetch('/api/admin/content-settings');
+                const data = await res.json();
+                const rows = data.settings || [];
+                const map = {};
+                rows.forEach(r => { map[r.settingKey] = r.settingValue; });
+                const fields = {
+                    'site_title': 'cs_site_title',
+                    'site_welcome': 'cs_site_welcome',
+                    'compose_placeholder': 'cs_compose_placeholder',
+                    'payment_instructions': 'cs_payment_instructions',
+                    'upgrade_hint': 'cs_upgrade_hint'
+                };
+                Object.entries(fields).forEach(([key, elId]) => {
+                    const el = document.getElementById(elId);
+                    if(el && map[key] !== undefined) el.value = map[key];
+                });
+            } catch(e) { console.error('載入文案設定失敗:', e); }
+        }
+
+        async function saveContentSettings() {
+            const fields = {
+                'site_title': 'cs_site_title',
+                'site_welcome': 'cs_site_welcome',
+                'compose_placeholder': 'cs_compose_placeholder',
+                'payment_instructions': 'cs_payment_instructions',
+                'upgrade_hint': 'cs_upgrade_hint'
+            };
+            const settings = {};
+            Object.entries(fields).forEach(([key, elId]) => {
+                const el = document.getElementById(elId);
+                if(el) settings[key] = el.value;
+            });
+            try {
+                const res = await fetch('/api/admin/content-settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({settings})
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showAlert('文案設定已儲存', true);
+                    // 重新載入前台文案設定
+                    await loadFrontContentSettings();
+                } else {
+                    showAlert(data.message || '儲存失敗', false);
+                }
+            } catch(e) { showAlert('儲存失敗', false); }
         }
 
         // 初始載入

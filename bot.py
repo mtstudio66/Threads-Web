@@ -26,13 +26,14 @@ THREADS_API_URL = "https://graph.threads.net/v1.0/me/threads"
 THREADS_ME_URL = "https://graph.threads.net/v1.0/me"
 CHECK_INTERVAL_SECONDS = 60
 
+# 🌟 建立台灣時區常數 (UTC+8)
+TW_TZ = timezone(timedelta(hours=8))
+
 # ==========================================
-# 🛠️ 【重大修正】資料庫連線環境變數
-# 完全依賴 Zeabur 自動生成的環境變數 (走安全內網連線)
-# 如果你在本地端測試，請在本地端設定這些變數對應到你的外網 IP 和 31082 Port
+# 🛠️ 資料庫連線環境變數 (完全依賴 Zeabur 自動注入)
 # ==========================================
 DB_HOST = os.getenv("MYSQL_HOST", "localhost")
-DB_PORT = int(os.getenv("MYSQL_PORT", 3306)) # 伺服器內部必定是 3306，不要寫死 31082
+DB_PORT = int(os.getenv("MYSQL_PORT", 3306))
 DB_USER = os.getenv("MYSQL_USERNAME", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
@@ -51,7 +52,6 @@ def get_db_connection(retries=5, delay=3):
     for i in range(retries):
         try:
             logger.info(f"🔄 嘗試連線資料庫 ({i+1}/{retries})...")
-            # 加上 connect_timeout 避免無限卡住
             conn = mysql.connector.connect(
                 host=DB_HOST, 
                 port=DB_PORT, 
@@ -60,7 +60,13 @@ def get_db_connection(retries=5, delay=3):
                 database=DB_DATABASE,
                 connect_timeout=10 
             )
-            logger.info("✅ 資料庫連線成功！")
+            
+            # 🌟 【時區修正】確保每一次資料庫連線的操作都使用台灣時間 (UTC+8)
+            cursor = conn.cursor()
+            cursor.execute("SET time_zone = '+08:00'")
+            cursor.close()
+            
+            logger.info("✅ 資料庫連線成功！(已強制切換為台灣時區 +08:00)")
             return conn
         except mysql.connector.Error as err:
             last_err = err
@@ -76,21 +82,17 @@ def get_db_connection(retries=5, delay=3):
 
 # --- 密碼雜湊工具函數 ---
 def hash_password(password):
-    """使用 SHA-256 加鹽雜湊密碼"""
     salt = secrets.token_hex(16)
     hashed = hashlib.sha256((salt + password).encode()).hexdigest()
     return f"{salt}:{hashed}"
 
 def verify_password(password, stored_hash):
-    """驗證密碼是否正確"""
     if ':' not in stored_hash:
-        # 舊版無雜湊密碼，直接比對 (向下相容)
         return password == stored_hash
     salt, hashed = stored_hash.split(':')
     return hashlib.sha256((salt + password).encode()).hexdigest() == hashed
 
 def init_db():
-    """建立 SaaS 系統完整資料庫結構，並強制修復缺失資料"""
     db = None
     cursor = None
     try:
@@ -98,7 +100,6 @@ def init_db():
         db = get_db_connection()
         cursor = db.cursor()
         
-        # 建立帳號表、排程表、歷史表 (保留既有結構)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS threads_accounts (
                 id INT AUTO_INCREMENT PRIMARY KEY, accountName VARCHAR(128) NOT NULL,
@@ -119,16 +120,12 @@ def init_db():
                 errorMessage TEXT, publishedAt TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
-        # 建立文案表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS trending_templates (
                 id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(256) NOT NULL, content TEXT NOT NULL,
                 category VARCHAR(64) NOT NULL, usageCount INT DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-
-        # 【新增】使用者表與計費設定表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(64) NOT NULL UNIQUE,
@@ -150,8 +147,6 @@ def init_db():
                 postCount INT DEFAULT 0, totalCost DECIMAL(10,2) DEFAULT 0, UNIQUE(userId, month)
             )
         """)
-        
-        # 【新增】訂閱方案表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS subscription_plans (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -166,8 +161,6 @@ def init_db():
                 updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         """)
-        
-        # 【新增】使用者權限表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS user_permissions (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -178,8 +171,6 @@ def init_db():
                 UNIQUE(userId, permission)
             )
         """)
-        
-        # 【新增】USDT付款設定表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS usdt_settings (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -190,8 +181,6 @@ def init_db():
                 updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         """)
-        
-        # 【新增】付款記錄表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS payment_records (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -205,7 +194,6 @@ def init_db():
             )
         """)
 
-        # --- 資料庫欄位遷移 (確保舊資料庫有新欄位) ---
         def column_exists(table_name, column_name):
             cursor.execute("""
                 SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
@@ -213,7 +201,6 @@ def init_db():
             """, (DB_DATABASE, table_name, column_name))
             return cursor.fetchone()[0] > 0
         
-        # 確保各表有新增的欄位
         if not column_exists('users', 'password'): cursor.execute("ALTER TABLE users ADD COLUMN password VARCHAR(255) NOT NULL DEFAULT ''")
         if not column_exists('users', 'email'): cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(128) DEFAULT NULL")
         if not column_exists('users', 'role'): cursor.execute("ALTER TABLE users ADD COLUMN role ENUM('user', 'admin') DEFAULT 'user'")
@@ -222,12 +209,8 @@ def init_db():
         if not column_exists('scheduled_posts', 'imageUrl'): cursor.execute("ALTER TABLE scheduled_posts ADD COLUMN imageUrl TEXT DEFAULT NULL")
         if not column_exists('posts', 'imageUrl'): cursor.execute("ALTER TABLE posts ADD COLUMN imageUrl TEXT DEFAULT NULL")
 
-        # --- 預設資料寫入與強制修復 ---
-        
-        # 1. 確保有預設管理員與計費設定
         cursor.execute("SELECT COUNT(*) FROM users")
         if cursor.fetchone()[0] == 0:
-            # 修改預設密碼為 123456 (前端會強制修改)
             admin_hash = hash_password('123456')
             cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'admin')", ('admin', admin_hash))
             logger.info("✅ 成功建立預設管理員 (admin/123456)")
@@ -244,7 +227,6 @@ def init_db():
         if cursor.fetchone()[0] == 0:
             cursor.execute("INSERT INTO billing_settings (pricePerPost, freeQuota) VALUES (0.5, 100)")
         
-        # 2. 確保有預設訂閱方案
         cursor.execute("SELECT COUNT(*) FROM subscription_plans")
         if cursor.fetchone()[0] == 0:
             default_plans = [
@@ -258,12 +240,10 @@ def init_db():
                 default_plans
             )
         
-        # 3. 確保有預設USDT設定
         cursor.execute("SELECT COUNT(*) FROM usdt_settings")
         if cursor.fetchone()[0] == 0:
             cursor.execute("INSERT INTO usdt_settings (walletAddress, networkType, minPaymentAmount) VALUES ('TRX_WALLET_ADDRESS_HERE', 'TRC20', 10.00)")
 
-        # 4. 【強制修復文案庫】
         cursor.execute("SELECT COUNT(*) FROM trending_templates")
         template_count = cursor.fetchone()[0]
         if template_count < 5:
@@ -297,7 +277,6 @@ def init_db():
 
 @app.route('/')
 def index():
-    """強制每次讀取最新 index.html，徹底阻斷快取"""
     try:
         response = make_response(send_file(INDEX_FILE))
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
@@ -312,7 +291,7 @@ def get_dashboard_data():
     db = None
     cursor = None
     try:
-        db = get_db_connection(retries=1) # 為了避免 API 卡住，這裡重試次數設少一點
+        db = get_db_connection(retries=1) 
         cursor = db.cursor(dictionary=True)
         
         cursor.execute("SELECT id, accountName, isActive FROM threads_accounts")
@@ -338,7 +317,7 @@ def get_dashboard_data():
         cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
         billing = cursor.fetchone() or {"pricePerPost": 0.5, "freeQuota": 100}
         
-        current_month = datetime.now().strftime('%Y-%m')
+        current_month = datetime.now(TW_TZ).strftime('%Y-%m')
         cursor.execute("SELECT postCount, totalCost FROM user_usage WHERE month = %s AND userId = 1", (current_month,))
         usage = cursor.fetchone() or {"postCount": 0, "totalCost": 0}
         
@@ -363,7 +342,7 @@ def get_admin_data():
         cursor = db.cursor(dictionary=True)
         cursor.execute("SELECT id, username, role, createdAt FROM users")
         users = cursor.fetchall()
-        current_month = datetime.now().strftime('%Y-%m')
+        current_month = datetime.now(TW_TZ).strftime('%Y-%m')
         for u in users:
             cursor.execute("SELECT postCount FROM user_usage WHERE userId = %s AND month = %s", (u['id'], current_month))
             row = cursor.fetchone()
@@ -416,9 +395,6 @@ def admin_login():
         if cursor: cursor.close()
         if db: db.close()
 
-# ==========================================
-# 新增: 文案管理 API (新增與刪除)
-# ==========================================
 @app.route('/api/admin/templates', methods=['POST'])
 def create_template():
     data = request.json
@@ -456,8 +432,6 @@ def delete_template(template_id):
         if cursor: cursor.close()
         if db: db.close()
 
-# ==========================================
-
 @app.route('/api/admin/users', methods=['GET'])
 def get_all_users():
     try:
@@ -471,7 +445,7 @@ def get_all_users():
             ORDER BY u.id ASC
         """)
         users = cursor.fetchall()
-        current_month = datetime.now().strftime('%Y-%m')
+        current_month = datetime.now(TW_TZ).strftime('%Y-%m')
         for u in users:
             cursor.execute("SELECT postCount, totalCost FROM user_usage WHERE userId = %s AND month = %s", (u['id'], current_month))
             row = cursor.fetchone()
@@ -943,35 +917,26 @@ def normalize_scheduled_at(scheduled_at, timezone_offset_minutes=None):
     if not scheduled_at:
         raise ValueError("請選擇時間！")
 
+    clean_time_str = scheduled_at.replace('Z', '')[:19]
     parsed_datetime = None
+    
     for dt_format in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
         try:
-            parsed_datetime = datetime.strptime(scheduled_at, dt_format)
+            parsed_datetime = datetime.strptime(clean_time_str, dt_format)
             break
         except ValueError:
             continue
 
     if parsed_datetime is None:
-        try:
-            parsed_datetime = datetime.fromisoformat(scheduled_at.replace('Z', '+00:00'))
-        except ValueError as e:
-            raise ValueError("排程時間格式不正確") from e
+        raise ValueError("排程時間格式不正確")
 
-    if parsed_datetime.tzinfo is not None:
-        return parsed_datetime.astimezone(timezone.utc).replace(tzinfo=None)
-
-    if timezone_offset_minutes is None:
-        return parsed_datetime
-
-    try:
-        return parsed_datetime + timedelta(minutes=int(timezone_offset_minutes))
-    except (TypeError, ValueError) as e:
-        raise ValueError("時區資訊格式不正確") from e
+    return parsed_datetime
 
 def post_to_threads(content, image_url, access_token):
     if 'mock' in access_token.lower() or '請之後' in access_token:
         return False, "無效的測試 Token"
     try:
+        # 1. 建立貼文草稿 (Container)
         media_type = "IMAGE" if image_url else "TEXT"
         create_payload = {"media_type": media_type, "text": content, "access_token": access_token}
         if image_url: create_payload["image_url"] = image_url
@@ -980,13 +945,18 @@ def post_to_threads(content, image_url, access_token):
         if 'id' not in create_response:
             return False, get_threads_error_message(create_response, str(create_response))
         
-        publish_payload = {"access_token": access_token}
-        publish_url = f"https://graph.threads.net/v1.0/{create_response['id']}/publish"
+        # 2. 🛠️ 【發布端點重大修正】根據官方文件，正確的網址是 /me/threads_publish 且傳遞 creation_id
+        publish_payload = {
+            "creation_id": create_response['id'],
+            "access_token": access_token
+        }
+        publish_url = "https://graph.threads.net/v1.0/me/threads_publish"
         publish_response = requests.post(publish_url, data=publish_payload, timeout=15).json()
         
         if 'id' in publish_response: return True, publish_response['id']
         return False, get_threads_error_message(publish_response, str(publish_response))
-    except Exception as e: return False, str(e)
+    except Exception as e: 
+        return False, str(e)
 
 def process_posts():
     db = None
@@ -994,7 +964,9 @@ def process_posts():
     try:
         db = get_db_connection(retries=1)
         cursor = db.cursor(dictionary=True)
-        now = datetime.utcnow()
+        
+        # 🌟 【時區修正】確保排程比較時使用台灣時間
+        now = datetime.now(TW_TZ).replace(tzinfo=None)
         
         cursor.execute("""
             SELECT sp.id, sp.accountId, sp.content, sp.imageUrl, ta.accessToken 
@@ -1024,7 +996,8 @@ def process_posts():
                     price = billing.get('pricePerPost', 0.5) if isinstance(billing, dict) else 0.5
                     free_quota = billing.get('freeQuota', 100) if isinstance(billing, dict) else 100
                     
-                    current_month = datetime.utcnow().strftime('%Y-%m')
+                    # 🌟 【時區修正】確保扣款紀錄使用台灣時間
+                    current_month = datetime.now(TW_TZ).strftime('%Y-%m')
                     cursor.execute("""
                         INSERT INTO user_usage (userId, month, postCount, totalCost) VALUES (1, %s, 1, 0)
                         ON DUPLICATE KEY UPDATE 

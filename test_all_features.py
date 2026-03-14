@@ -12,6 +12,8 @@ import unittest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
+TAIPEI_TZ_OFFSET = -480
+
 # 設置環境變數以模擬資料庫連線
 os.environ['MYSQL_HOST'] = 'localhost'
 os.environ['MYSQL_PORT'] = '3306'
@@ -780,7 +782,7 @@ class TestSchedulingUtilities(unittest.TestCase):
 
     def test_normalize_scheduled_at_converts_local_time_to_utc(self):
         """測試排程時間會依照時區轉成 UTC"""
-        normalized = normalize_scheduled_at('2026-03-14 09:44:11', -480)
+        normalized = normalize_scheduled_at('2026-03-14 09:44:11', TAIPEI_TZ_OFFSET)
         self.assertEqual(normalized, datetime(2026, 3, 14, 1, 44, 11))
         print("✅ 排程時間會正確換算成 UTC")
 

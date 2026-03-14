@@ -102,7 +102,7 @@
                                 <button onclick="removeImage()" class="absolute -top-2 -right-2 bg-destructive text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg"><i class="fa-solid fa-xmark"></i></button>
                             </div>
                             <div class="flex gap-4 border-y border-border py-3">
-                                <button onclick="document.getElementById('imageUpload').click()" id="uploadBtn" class="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2"><i class="fa-solid fa-image"></i> 上傳圖片 (S3)</button>
+                                <button onclick="document.getElementById('imageUpload').click()" id="uploadBtn" class="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2"><i class="fa-solid fa-image"></i> 上傳圖片</button>
                                 <button onclick="switchTab('templates')" class="text-sm text-muted-foreground hover:text-primary flex items-center gap-2"><i class="fa-solid fa-fire"></i> 熱門文案</button>
                             </div>
                         </div>
@@ -1549,16 +1549,21 @@
         async function uploadImage(e) {
             const file = e.target.files[0];
             if(!file) return;
+            if(!file.type.startsWith('image/')) { showAlert('請選擇圖片檔案', false); e.target.value = ''; return; }
+            if(file.size > 10 * 1024 * 1024) { showAlert('檔案過大，上限為 10 MB', false); e.target.value = ''; return; }
             const btn = document.getElementById('uploadBtn');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 上傳中...';
             try {
-                const res = await fetch('/api/upload', {method:'POST'});
+                const formData = new FormData();
+                formData.append('image', file);
+                const res = await fetch('/api/upload', {method:'POST', body: formData});
                 const data = await res.json();
+                if(!res.ok) { showAlert(data.message || '上傳失敗', false); return; }
                 currentUploadedImageUrl = data.url;
                 document.getElementById('imagePreview').src = currentUploadedImageUrl;
                 document.getElementById('imagePreviewContainer').classList.remove('hidden');
             } catch(e) { showAlert('上傳失敗', false); }
-            btn.innerHTML = '<i class="fa-solid fa-image"></i> 上傳圖片 (S3)'; e.target.value = '';
+            finally { btn.innerHTML = '<i class="fa-solid fa-image"></i> 上傳圖片'; e.target.value = ''; }
         }
         function removeImage() { currentUploadedImageUrl = ''; document.getElementById('imagePreviewContainer').classList.add('hidden'); }
 

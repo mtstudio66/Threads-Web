@@ -6,8 +6,12 @@
 """
 
 import os
+import io
 import sys
 import json
+import struct
+import zlib
+import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
@@ -739,17 +743,51 @@ class TestUtilityAPI(unittest.TestCase):
     def setUp(self):
         self.app = app.test_client()
         self.app.testing = True
-    
-    @patch('bot.time.sleep')  # Skip sleep for faster tests
-    def test_upload_returns_url(self, mock_sleep):
-        """測試上傳回傳 URL"""
-        response = self.app.post('/api/upload')
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertIn('url', data)
-        self.assertTrue(data['url'].startswith('http'))
-        print("✅ 上傳 API 回傳 URL 成功")
-    
+
+    @staticmethod
+    def _minimal_png():
+        """生成最小有效 PNG 供測試使用 (1×1 白色像素)"""
+        def chunk(name, data):
+            c = struct.pack('>I', len(data)) + name + data
+            return c + struct.pack('>I', zlib.crc32(name + data) & 0xffffffff)
+        sig = b'\x89PNG\r\n\x1a\n'
+        ihdr = chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0))
+        idat = chunk(b'IDAT', zlib.compress(b'\x00\xff\xff\xff'))
+        iend = chunk(b'IEND', b'')
+        return sig + ihdr + idat + iend
+
+    def test_upload_image_success_returns_file_url(self):
+        """測試上傳圖片後回傳的是對應實際儲存檔案的 URL，而非固定示意圖"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch('bot.UPLOAD_DIR', tmpdir):
+                png_data = self._minimal_png()
+                data = {'image': (io.BytesIO(png_data), 'test.png', 'image/png')}
+                response = self.app.post('/api/upload', data=data, content_type='multipart/form-data')
+                self.assertEqual(response.status_code, 200)
+                result = json.loads(response.data)
+                self.assertIn('url', result)
+                self.assertTrue(result['url'].startswith('/uploads/'))
+                self.assertTrue(result['url'].endswith('.png'))
+                self.assertNotIn('unsplash.com', result['url'])
+                print("✅ 上傳圖片成功，回傳原始圖片 URL 而非固定示意圖")
+
+    def test_upload_missing_file_returns_400(self):
+        """測試未提供檔案時回傳 400"""
+        response = self.app.post('/api/upload', data={}, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 400)
+        result = json.loads(response.data)
+        self.assertIn('message', result)
+        print("✅ 未提供圖片時正確回傳 400")
+
+    def test_upload_non_image_returns_400(self):
+        """測試上傳非圖片檔案時回傳 400"""
+        data = {'image': (io.BytesIO(b'not an image'), 'test.txt', 'text/plain')}
+        response = self.app.post('/api/upload', data=data, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 400)
+        result = json.loads(response.data)
+        self.assertIn('message', result)
+        print("✅ 非圖片檔案被正確拒絕，回傳 400")
+
     @patch('bot.time.sleep')  # Skip sleep for faster tests
     def test_generate_ai_success(self, mock_sleep):
         """測試 AI 生成成功"""

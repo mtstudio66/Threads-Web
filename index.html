@@ -632,6 +632,7 @@
         }
 
         const TAIPEI_TIME_ZONE = 'Asia/Taipei';
+        const TAIPEI_TIME_ZONE_OFFSET_HOURS = 8;
         const DEFAULT_SCHEDULE_OFFSET_MS = 10 * 60 * 1000;
         const IMMEDIATE_SCHEDULE_OFFSET_MS = 60 * 1000;
         const TAIPEI_TIMEZONE_OFFSET_MINUTES = -480; // 依 JS timezoneOffsetMinutes 慣例，位於 UTC 東側的台北需傳 -480 給後端
@@ -665,11 +666,18 @@
             if (value instanceof Date) return value;
 
             const normalizedValue = String(value).trim();
-            // 支援後端常見的 YYYY-MM-DD HH:mm:ss / YYYY-MM-DDTHH:mm:ss（資料庫 UTC 時間）
+            // 支援後端常見的 YYYY-MM-DD HH:mm:ss / YYYY-MM-DDTHH:mm:ss（資料庫回傳的台北本地時間）
             const timestampMatch = normalizedValue.match(UTC_TIMESTAMP_PATTERN);
             if (timestampMatch) {
                 const [, year, month, day, hour, minute, second = '00'] = timestampMatch;
-                return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
+                return new Date(Date.UTC(
+                    Number(year),
+                    Number(month) - 1,
+                    Number(day),
+                    Number(hour) - TAIPEI_TIME_ZONE_OFFSET_HOURS,
+                    Number(minute),
+                    Number(second)
+                ));
             }
 
             const parsedDate = new Date(normalizedValue);

@@ -4,6 +4,7 @@
 import os
 import time
 import json
+import uuid
 import logging
 import threading
 import hashlib
@@ -11,7 +12,8 @@ import secrets
 import requests
 from datetime import datetime, timedelta, timezone
 import mysql.connector
-from flask import Flask, request, jsonify, make_response, send_file
+from werkzeug.utils import secure_filename
+from flask import Flask, request, jsonify, make_response, send_file, send_from_directory
 
 # --- 1. 設定日誌 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -45,6 +47,12 @@ logger.info(f"👉 密碼檢查 (前/後三碼): {safe_pwd}")
 # 絕對路徑讀取 index.html
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_FILE = os.path.join(BASE_DIR, 'index.html')
+
+# 圖片上傳設定
+UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 def get_db_connection(retries=5, delay=3):
     """取得資料庫連線，具備更強的失敗自動重試機制與詳細報錯"""
@@ -867,10 +875,52 @@ def cancel_schedule(post_id):
     finally:
         if db: db.close()
 
+_IMAGE_MAGIC_BYTES = {
+    b'\x89PNG\r\n\x1a\n': 'png',
+    b'\xff\xd8\xff': 'jpeg',
+    b'GIF87a': 'gif',
+    b'GIF89a': 'gif',
+    b'RIFF': 'webp',  # RIFF....WEBP checked below
+}
+
+def _is_valid_image_content(file_stream):
+    """Check the first bytes of the file to verify it is an image."""
+    header = file_stream.read(12)
+    file_stream.seek(0)
+    for magic, _ in _IMAGE_MAGIC_BYTES.items():
+        if header[:len(magic)] == magic:
+            if magic == b'RIFF':
+                return header[8:12] == b'WEBP'
+            return True
+    return False
+
 @app.route('/api/upload', methods=['POST'])
-def mock_s3_upload():
-    time.sleep(1.5)
-    return jsonify({"url": "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?q=80&w=600&auto=format&fit=crop"}), 200
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({"message": "未提供圖片檔案"}), 400
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({"message": "未選擇檔案"}), 400
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        return jsonify({"message": "僅接受圖片格式（jpg、png、gif、webp）"}), 400
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > MAX_UPLOAD_BYTES:
+        return jsonify({"message": "檔案過大，上限為 10 MB"}), 400
+    if not _is_valid_image_content(file):
+        return jsonify({"message": "檔案內容不符合圖片格式"}), 400
+    safe_name = secure_filename(file.filename)
+    unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+    save_path = os.path.join(UPLOAD_DIR, unique_name)
+    file.save(save_path)
+    url = f"/uploads/{unique_name}"
+    return jsonify({"url": url}), 200
+
+@app.route('/uploads/<path:filename>')
+def serve_upload(filename):
+    return send_from_directory(UPLOAD_DIR, filename)
 
 @app.route('/api/generate-ai', methods=['POST'])
 def generate_ai():

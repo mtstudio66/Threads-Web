@@ -33,3 +33,5 @@ wheels/
 *.swo
 *~
 .DS_Store
+# User-uploaded images (runtime data, not source code)
+uploads/

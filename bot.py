@@ -26,7 +26,7 @@ THREADS_API_URL = "https://graph.threads.net/v1.0/me/threads"
 CHECK_INTERVAL_SECONDS = 60
 
 # 強制讀取環境變數，並加上詳細的 Debug 輸出 (注意：為了安全，密碼只顯示前幾碼)
-DB_HOST = os.getenv("MYSQL_HOST", "localhost")
+DB_HOST = os.getenv("CUSTOM_DB_HOST") or os.getenv("MYSQL_HOST", "localhost")
 
 # 🛠️ 【修改重點 1】改抓 CUSTOM_DB_PORT，避開 Zeabur 偷偷塞的 MYSQL_PORT=3306
 DB_PORT = int(os.getenv("CUSTOM_DB_PORT", 31082))
@@ -35,7 +35,7 @@ DB_PORT = int(os.getenv("CUSTOM_DB_PORT", 31082))
 DB_USER = os.getenv("CUSTOM_DB_USER") or os.getenv("MYSQL_USERNAME") or os.getenv("MYSQL_USER", "root")
 
 # 密碼的部分你的截圖看起來是用 CUSTOM_DB_PWD，我也幫你加進去當優先選項
-DB_PASSWORD = os.getenv("MYSQL_PASSWORD") or os.getenv("CUSTOM_DB_PWD", "")
+DB_PASSWORD = os.getenv("CUSTOM_DB_PWD") or os.getenv("MYSQL_PASSWORD", "")
 
 DB_DATABASE = os.getenv("MYSQL_DATABASE", "zeabur")
 

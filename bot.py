@@ -1025,9 +1025,14 @@ def normalize_scheduled_at(scheduled_at, timezone_offset_minutes=None):
     except (TypeError, ValueError):
         return parsed_datetime
 
+    # 前端已強制使用台北時間；如果 offset 也是台北 (-480)，
+    # 代表這個 naive datetime 已經是台北本地時間，不需要再做任何換算。
     if timezone_offset_minutes == TAIPEI_TIMEZONE_OFFSET_MINUTES:
         return parsed_datetime
 
+    # JS 的 timezoneOffsetMinutes = UTC - local。
+    # 這裡用「來源 offset - 台北 offset」算出要補回多少分鐘，
+    # 例如來源是 UTC(0)，則 delta = 0 - (-480) = +480 分鐘，即轉成台北時間。
     offset_delta = timedelta(minutes=timezone_offset_minutes - TAIPEI_TIMEZONE_OFFSET_MINUTES)
     return parsed_datetime + offset_delta
 

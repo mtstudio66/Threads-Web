@@ -145,6 +145,23 @@ class MockDBConnection:
         return True
 
 
+class SequentialMockDBCursor(MockDBCursor):
+    """依序回傳 fetchall/fetchone 結果的 cursor"""
+    def fetchone(self):
+        if self.results and self._index < len(self.results):
+            result = self.results[self._index]
+            self._index += 1
+            return result
+        return None
+
+    def fetchall(self):
+        if self.results and self._index < len(self.results):
+            result = self.results[self._index]
+            self._index += 1
+            return result
+        return []
+
+
 class TestDashboardAPI(unittest.TestCase):
     """測試 Dashboard API"""
     
@@ -168,6 +185,26 @@ class TestDashboardAPI(unittest.TestCase):
         response = self.app.get('/api/dashboard')
         self.assertEqual(response.status_code, 200)
         print("✅ Dashboard API 回傳成功")
+
+    @patch('bot.get_db_connection')
+    def test_get_dashboard_data_formats_taipei_datetimes(self, mock_db):
+        """測試 Dashboard API 會以台北時間字串回傳排程與歷史時間"""
+        cursor = SequentialMockDBCursor([
+            [],  # accounts
+            [],  # templates
+            [{'id': 1, 'scheduledAt': datetime(2026, 3, 14, 10, 0, 17), 'status': 'pending', 'content': '排程', 'imageUrl': None, 'accountName': 'demo'}],
+            [{'id': 2, 'publishedAt': datetime(2026, 3, 14, 18, 54, 4), 'status': 'published', 'content': '已發布', 'errorMessage': None, 'accountName': 'demo'}],
+            {'pricePerPost': 0.5, 'freeQuota': 100},  # billing
+            {'postCount': 10, 'totalCost': 5.0}  # usage
+        ])
+        mock_db.return_value = MockDBConnection(cursor)
+
+        response = self.app.get('/api/dashboard')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data['schedules'][0]['scheduledAt'], '2026-03-14 10:00:17')
+        self.assertEqual(data['history'][0]['publishedAt'], '2026-03-14 18:54:04')
+        print("✅ Dashboard API 會回傳台北時間字串，避免 GMT 誤判")
 
 
 class TestAdminLoginAPI(unittest.TestCase):
@@ -680,10 +717,10 @@ class TestScheduleAPI(unittest.TestCase):
                                      'content': '測試內容',
                                      'scheduledAt': '2024-12-31T12:00:00Z',
                                      'timezoneOffsetMinutes': -480
-                                  }),
+                                   }),
                                   content_type='application/json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(cursor.executed[-1][1][3], datetime(2024, 12, 31, 12, 0, 0))
+        self.assertEqual(cursor.executed[-1][1][3], datetime(2024, 12, 31, 20, 0, 0))
         print("✅ 新增排程成功")
 
     @patch('bot.validate_threads_token')
@@ -700,11 +737,11 @@ class TestScheduleAPI(unittest.TestCase):
                                      'content': '台北時間排程',
                                      'scheduledAt': '2026-03-14 10:00:17',
                                      'timezoneOffsetMinutes': TAIPEI_TZ_OFFSET
-                                  }),
+                                   }),
                                   content_type='application/json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(cursor.executed[-1][1][3], datetime(2026, 3, 14, 2, 0, 17))
-        print("✅ 台北時間排程會正確換算並儲存")
+        self.assertEqual(cursor.executed[-1][1][3], datetime(2026, 3, 14, 10, 0, 17))
+        print("✅ 台北時間排程會保留台北本地時間儲存")
 
     @patch('bot.validate_threads_token')
     @patch('bot.get_db_connection')
@@ -838,11 +875,17 @@ class TestBillingSettingsAPI(unittest.TestCase):
 class TestSchedulingUtilities(unittest.TestCase):
     """測試排程時間工具"""
 
-    def test_normalize_scheduled_at_converts_local_time_to_utc(self):
-        """測試排程時間會依照時區轉成 UTC"""
+    def test_normalize_scheduled_at_keeps_taipei_local_time(self):
+        """測試台北本地時間會維持台北時間儲存"""
         normalized = normalize_scheduled_at('2026-03-14 09:44:11', TAIPEI_TZ_OFFSET)
-        self.assertEqual(normalized, datetime(2026, 3, 14, 1, 44, 11))
-        print("✅ 排程時間會正確換算成 UTC")
+        self.assertEqual(normalized, datetime(2026, 3, 14, 9, 44, 11))
+        print("✅ 台北本地時間會維持台北時間")
+
+    def test_normalize_scheduled_at_converts_utc_to_taipei(self):
+        """測試 UTC 時間輸入會轉成台北時間"""
+        normalized = normalize_scheduled_at('2026-03-14T09:44:11Z', TAIPEI_TZ_OFFSET)
+        self.assertEqual(normalized, datetime(2026, 3, 14, 17, 44, 11))
+        print("✅ UTC 時間會正確轉成台北時間")
 
 
 def run_all_tests():

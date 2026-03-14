@@ -30,6 +30,8 @@ CHECK_INTERVAL_SECONDS = 60
 
 # 🌟 建立台灣時區常數 (UTC+8)
 TW_TZ = timezone(timedelta(hours=8))
+TAIPEI_TIMEZONE_OFFSET_MINUTES = -480
+DATETIME_DISPLAY_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # ==========================================
 # 🛠️ 資料庫連線環境變數 (完全依賴 Zeabur 自動注入)
@@ -53,6 +55,31 @@ UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
+def get_taipei_now_naive():
+    return datetime.now(TW_TZ).replace(tzinfo=None)
+
+def format_datetime_for_api(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            value = value.astimezone(TW_TZ).replace(tzinfo=None)
+        return value.strftime(DATETIME_DISPLAY_FORMAT)
+    return value
+
+def serialize_datetime_fields(records, *field_names):
+    serialized_records = []
+    for record in records:
+        if isinstance(record, dict):
+            serialized = dict(record)
+            for field_name in field_names:
+                if field_name in serialized:
+                    serialized[field_name] = format_datetime_for_api(serialized.get(field_name))
+            serialized_records.append(serialized)
+        else:
+            serialized_records.append(record)
+    return serialized_records
 
 def get_db_connection(retries=5, delay=3):
     """取得資料庫連線，具備更強的失敗自動重試機制與詳細報錯"""
@@ -313,14 +340,14 @@ def get_dashboard_data():
             FROM scheduled_posts sp LEFT JOIN threads_accounts ta ON sp.accountId = ta.id
             WHERE sp.status = 'pending' ORDER BY sp.scheduledAt ASC LIMIT 100
         """)
-        schedules = cursor.fetchall()
+        schedules = serialize_datetime_fields(cursor.fetchall(), 'scheduledAt')
         
         cursor.execute("""
             SELECT p.id, p.content, p.status, p.publishedAt, p.errorMessage, ta.accountName 
             FROM posts p LEFT JOIN threads_accounts ta ON p.accountId = ta.id
             ORDER BY p.publishedAt DESC LIMIT 100
         """)
-        history = cursor.fetchall()
+        history = serialize_datetime_fields(cursor.fetchall(), 'publishedAt')
 
         cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
         billing = cursor.fetchone() or {"pricePerPost": 0.5, "freeQuota": 100}
@@ -967,20 +994,47 @@ def normalize_scheduled_at(scheduled_at, timezone_offset_minutes=None):
     if not scheduled_at:
         raise ValueError("請選擇時間！")
 
-    clean_time_str = scheduled_at.replace('Z', '')[:19]
+    normalized_value = str(scheduled_at).strip()
     parsed_datetime = None
-    
-    for dt_format in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
-        try:
-            parsed_datetime = datetime.strptime(clean_time_str, dt_format)
-            break
-        except ValueError:
-            continue
+
+    try:
+        parsed_datetime = datetime.fromisoformat(normalized_value.replace('Z', '+00:00'))
+    except ValueError:
+        parsed_datetime = None
+
+    if parsed_datetime is None:
+        clean_time_str = normalized_value[:19]
+        for dt_format in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+            try:
+                parsed_datetime = datetime.strptime(clean_time_str, dt_format)
+                break
+            except ValueError:
+                continue
 
     if parsed_datetime is None:
         raise ValueError("排程時間格式不正確")
 
-    return parsed_datetime
+    if parsed_datetime.tzinfo is not None:
+        return parsed_datetime.astimezone(TW_TZ).replace(tzinfo=None)
+
+    if timezone_offset_minutes is None:
+        return parsed_datetime
+
+    try:
+        timezone_offset_minutes = int(timezone_offset_minutes)
+    except (TypeError, ValueError):
+        return parsed_datetime
+
+    # 前端已強制使用台北時間；如果 offset 也是台北 (-480)，
+    # 代表這個 naive datetime 已經是台北本地時間，不需要再做任何換算。
+    if timezone_offset_minutes == TAIPEI_TIMEZONE_OFFSET_MINUTES:
+        return parsed_datetime
+
+    # JS 的 timezoneOffsetMinutes = UTC - local。
+    # 這裡用「來源 offset - 台北 offset」算出要補回多少分鐘，
+    # 例如來源是 UTC(0)，則 delta = 0 - (-480) = +480 分鐘，即轉成台北時間。
+    offset_delta = timedelta(minutes=timezone_offset_minutes - TAIPEI_TIMEZONE_OFFSET_MINUTES)
+    return parsed_datetime + offset_delta
 
 def post_to_threads(content, image_url, access_token):
     if 'mock' in access_token.lower() or '請之後' in access_token:
@@ -1016,7 +1070,7 @@ def process_posts():
         cursor = db.cursor(dictionary=True)
         
         # 🌟 【時區修正】確保排程比較時使用台灣時間
-        now = datetime.now(TW_TZ).replace(tzinfo=None)
+        now = get_taipei_now_naive()
         
         cursor.execute("""
             SELECT sp.id, sp.accountId, sp.content, sp.imageUrl, ta.accessToken 
@@ -1035,10 +1089,11 @@ def process_posts():
                 
                 if success:
                     logger.info(f"發文成功！Post ID: {result}")
+                    published_at = get_taipei_now_naive()
                     cursor.execute("""
                         INSERT INTO posts (accountId, content, imageUrl, threadsPostId, status, publishedAt)
-                        VALUES (%s, %s, %s, %s, 'published', NOW())
-                    """, (post['accountId'], post['content'], post['imageUrl'], result))
+                        VALUES (%s, %s, %s, %s, 'published', %s)
+                    """, (post['accountId'], post['content'], post['imageUrl'], result, published_at))
                     published_post_id = cursor.lastrowid
                     
                     cursor.execute("SELECT pricePerPost, freeQuota FROM billing_settings LIMIT 1")
@@ -1047,7 +1102,7 @@ def process_posts():
                     free_quota = billing.get('freeQuota', 100) if isinstance(billing, dict) else 100
                     
                     # 🌟 【時區修正】確保扣款紀錄使用台灣時間
-                    current_month = datetime.now(TW_TZ).strftime('%Y-%m')
+                    current_month = published_at.strftime('%Y-%m')
                     cursor.execute("""
                         INSERT INTO user_usage (userId, month, postCount, totalCost) VALUES (1, %s, 1, 0)
                         ON DUPLICATE KEY UPDATE 
@@ -1058,7 +1113,7 @@ def process_posts():
                     cursor.execute("UPDATE scheduled_posts SET status = 'published', postId = %s, errorMessage = NULL WHERE id = %s", (published_post_id, post_id))
                 else:
                     logger.error(f"發文失敗: {result}")
-                    cursor.execute("INSERT INTO posts (accountId, content, status, errorMessage, publishedAt) VALUES (%s, %s, 'failed', %s, NOW())", (post['accountId'], post['content'], result))
+                    cursor.execute("INSERT INTO posts (accountId, content, status, errorMessage, publishedAt) VALUES (%s, %s, 'failed', %s, %s)", (post['accountId'], post['content'], result, get_taipei_now_naive()))
                     cursor.execute("UPDATE scheduled_posts SET status = 'failed', errorMessage = %s WHERE id = %s", (result, post_id))
                 db.commit()
             except Exception as post_error:
